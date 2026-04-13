@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NeuroScan — Alzheimer MRI Classifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────────────────────────
+   TOKENS
+───────────────────────────────────────────── */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:   cubic-bezier(0.4, 0, 0.2, 1);
+  --mono: 'DM Mono', monospace;
+  --serif: 'Instrument Serif', serif;
+}
+
+[data-theme="dark"] {
+  --bg:         #0f0f0f;
+  --surface:    #1c1c1c;
+  --surface2:   #252525;
+  --border:     #2e2e2e;
+  --border2:    #3a3a3a;
+  --text:       #f0f0f0;
+  --text-2:     #a0a0a0;
+  --text-3:     #606060;
+  --accent:     #f0f0f0;
+  --accent-dim: #2e2e2e;
+  --danger:     #c0392b;
+  --danger-dim: #2a1210;
+  --shadow:     0 1px 3px rgba(0,0,0,.6), 0 4px 16px rgba(0,0,0,.4);
+  /* risk indicator colors */
+  --risk-safe-fg:  #4caf7d; --risk-safe-bg:  rgba(76,175,125,.13);
+  --risk-low-fg:   #c9a84c; --risk-low-bg:   rgba(201,168,76,.13);
+  --risk-mid-fg:   #c97c3a; --risk-mid-bg:   rgba(201,124,58,.13);
+  --risk-high-fg:  #c0392b; --risk-high-bg:  rgba(192,57,43,.13);
+}
+
+[data-theme="light"] {
+  --bg:         #f5f2ed;
+  --surface:    #ece8e1;
+  --surface2:   #e2ddd6;
+  --border:     #d4cdc4;
+  --border2:    #c4bcb2;
+  --text:       #2c1f14;
+  --text-2:     #7a6a5a;
+  --text-3:     #b0a090;
+  --accent:     #2c1f14;
+  --accent-dim: #e2ddd6;
+  --danger:     #8b2615;
+  --danger-dim: #f5e8e5;
+  --shadow:     0 1px 3px rgba(44,31,20,.1), 0 4px 16px rgba(44,31,20,.06);
+  /* risk indicator colors */
+  --risk-safe-fg:  #2e7d52; --risk-safe-bg:  rgba(46,125,82,.1);
+  --risk-low-fg:   #9a7020; --risk-low-bg:   rgba(154,112,32,.1);
+  --risk-mid-fg:   #9a4e18; --risk-mid-bg:   rgba(154,78,24,.1);
+  --risk-high-fg:  #8b2615; --risk-high-bg:  rgba(139,38,21,.1);
+}
+
+/* ─────────────────────────────────────────────
+   RESET & BASE
+───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.35s var(--ease-in-out), color 0.35s var(--ease-in-out);
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────
+   LAYOUT
+───────────────────────────────────────────── */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  transition: border-color 0.35s var(--ease-in-out);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────
+   TOPBAR
+───────────────────────────────────────────── */
+.logo {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.logo-name {
+  font-family: var(--serif);
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.logo-tag {
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Theme toggle */
+.theme-btn {
+  width: 32px; height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.theme-btn:hover { border-color: var(--border2); color: var(--text); }
+
+.theme-icon {
+  position: absolute;
+  font-size: 14px;
+  transition: transform 0.4s var(--ease-out-expo), opacity 0.3s;
+}
+.icon-dark  { transform: translateY(0);    opacity: 1; }
+.icon-light { transform: translateY(28px); opacity: 0; }
+
+[data-theme="light"] .icon-dark  { transform: translateY(-28px); opacity: 0; }
+[data-theme="light"] .icon-light { transform: translateY(0);     opacity: 1; }
+
+/* Sidebar toggle */
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.sidebar-toggle:hover { border-color: var(--border2); color: var(--text); background: var(--surface); }
+
+.toggle-icon {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 14px;
+}
+.toggle-icon span {
+  display: block;
+  height: 1px;
+  background: currentColor;
+  transition: width 0.3s var(--ease-out-expo), transform 0.3s var(--ease-out-expo);
+}
+.toggle-icon span:nth-child(1) { width: 14px; }
+.toggle-icon span:nth-child(2) { width: 10px; }
+.toggle-icon span:nth-child(3) { width: 6px; }
+
+.sidebar-toggle.active .toggle-icon span:nth-child(1) { width: 6px; }
+.sidebar-toggle.active .toggle-icon span:nth-child(3) { width: 14px; }
+
+/* ─────────────────────────────────────────────
+   MAIN CONTENT
+───────────────────────────────────────────── */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px 48px;
+  transition: padding 0.4s var(--ease-out-expo);
+}
+
+.main::-webkit-scrollbar { width: 4px; }
+.main::-webkit-scrollbar-track { background: transparent; }
+.main::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.section-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 16px;
+}
+
+/* ─────────────────────────────────────────────
+   UPLOAD ZONE
+───────────────────────────────────────────── */
+.upload-zone {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 48px 32px;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.25s, background 0.25s;
+  margin-bottom: 24px;
+}
+
+.upload-zone input[type=file] {
+  position: absolute; inset: 0;
+  opacity: 0; cursor: pointer;
+  width: 100%; height: 100%;
+}
+
+.upload-zone:hover {
+  border-color: var(--border2);
+  background: var(--surface);
+}
+
+.upload-zone.drag-over {
+  border-color: var(--text-2);
+  background: var(--surface);
+}
+
+/* Scan-line animation on drag */
+.upload-zone::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: var(--text-3);
+  top: -100%;
+  transition: none;
+  opacity: 0;
+}
+
+.upload-zone.drag-over::before {
+  opacity: 1;
+  animation: scanline 1.2s linear infinite;
+}
+
+@keyframes scanline {
+  from { top: -2%; }
+  to   { top: 102%; }
+}
+
+.upload-zone-inner {
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.upload-icon {
+  width: 36px; height: 36px;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+  transition: border-color 0.25s, transform 0.25s var(--ease-out-expo);
+}
+
+.upload-zone:hover .upload-icon,
+.upload-zone.drag-over .upload-icon {
+  border-color: var(--text-2);
+  transform: translateY(-2px);
+}
+
+.upload-icon svg { width: 16px; height: 16px; stroke: var(--text-2); fill: none; stroke-width: 1.5; }
+
+.upload-primary {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.upload-secondary {
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+}
+
+/* ─────────────────────────────────────────────
+   UPLOAD STATS BAR
+───────────────────────────────────────────── */
+.stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  margin-bottom: 28px;
+  transition: opacity 0.3s, transform 0.3s var(--ease-out-expo);
+}
+
+.stats-bar.hidden {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-family: var(--serif);
+  color: var(--text);
+  line-height: 1;
+  transition: transform 0.3s var(--ease-out-expo);
+}
+
+.stat-value.pulse {
+  animation: statpulse 0.4s var(--ease-out-expo);
+}
+
+@keyframes statpulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+.stat-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.stat-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+}
+
+.stats-bar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* ─────────────────────────────────────────────
+   CONTROLS
+───────────────────────────────────────────── */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.field-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.mode-group {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mode-group input[type=radio] { display: none; }
+
+.mode-group label {
+  padding: 7px 14px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  color: var(--text-2);
+  transition: background 0.15s, color 0.15s;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.mode-group label:last-child { border-right: none; }
+
+.mode-group input:checked + label {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.mode-group label:hover { color: var(--text); background: var(--surface); }
+
+.mode-hint-text {
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  flex: 1;
+  min-width: 200px;
+  transition: opacity 0.2s;
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 20px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  color: var(--text-2);
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.btn:hover { background: var(--surface); color: var(--text); border-color: var(--border2); }
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.btn-primary:hover { opacity: 0.85; background: var(--text); color: var(--bg); }
+
+.btn-danger { color: var(--danger); border-color: var(--danger-dim); }
+.btn-danger:hover { background: var(--danger-dim); color: var(--danger); }
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 10px;
+}
+
+/* Spinner */
+.spinner {
+  width: 14px; height: 14px;
+  border: 1.5px solid var(--border2);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  display: none;
+}
+.spinner.active { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─────────────────────────────────────────────
+   ERROR
+───────────────────────────────────────────── */
+.error-bar {
+  padding: 10px 16px;
+  border: 1px solid var(--danger-dim);
+  border-radius: 6px;
+  background: var(--danger-dim);
+  color: var(--danger);
+  font-size: 11px;
+  margin-bottom: 20px;
+  display: none;
+  animation: slideDown 0.25s var(--ease-out-expo);
+}
+.error-bar.visible { display: block; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─────────────────────────────────────────────
+   RESULTS
+───────────────────────────────────────────── */
+.results-section { display: none; }
+.results-section.visible {
+  display: block;
+  animation: fadeUp 0.4s var(--ease-out-expo);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.results-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.results-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  color: var(--text);
+}
+
+.results-meta {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* Aggregate result */
+.agg-result {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.agg-top {
+  padding: 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.agg-class {
+  font-family: var(--serif);
+  font-size: 32px;
+  font-style: italic;
+  color: var(--text);
+  line-height: 1;
+}
+
+.agg-confidence {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.agg-bars { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 52px;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  transform: translateX(-8px);
+  animation: barIn 0.35s var(--ease-out-expo) forwards;
+}
+
+@keyframes barIn {
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.bar-label { font-size: 11px; color: var(--text-2); }
+.bar-track { height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+.bar-fill  { height: 100%; background: var(--text); border-radius: 1px; width: 0; transition: width 0.7s var(--ease-out-expo); }
+.bar-val   { font-size: 11px; color: var(--text-3); text-align: right; }
+
+/* Per image results */
+.per-image-header {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 12px;
+  margin-top: 8px;
+}
+
+.result-rows { display: flex; flex-direction: column; }
+
+.result-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  opacity: 0;
+  animation: rowIn 0.3s var(--ease-out-expo) forwards;
+}
+
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.result-row:last-child { border-bottom: none; }
+
+.result-filename { font-size: 12px; color: var(--text-2); }
+.result-class { font-size: 12px; color: var(--text); }
+.result-conf { font-size: 11px; color: var(--text-3); text-align: right; }
+
+/* ─────────────────────────────────────────────
+   SIDEBAR
+───────────────────────────────────────────── */
+.sidebar {
+  width: 0;
+  flex-shrink: 0;
+  border-left: 0px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition:
+    width 0.45s var(--ease-out-expo),
+    border-width 0.45s var(--ease-out-expo);
+}
+
+.sidebar.open {
+  width: 340px;
+  border-left-width: 1px;
+}
+
+.sidebar-inner {
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sidebar-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.sidebar-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sidebar-title {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-style: italic;
+}
+
+.sidebar-count {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* Filter tabs */
+.filter-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.filter-tab {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  color: var(--text-3);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.filter-tab:hover { color: var(--text-2); background: var(--surface); }
+.filter-tab.active { color: var(--text); background: var(--surface2); border-color: var(--border); }
+
+/* Sidebar bulk actions */
+.sidebar-actions {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+  max-height: 0;
+  padding-top: 0; padding-bottom: 0;
+  opacity: 0;
+  transition: max-height 0.3s var(--ease-out-expo), padding 0.3s, opacity 0.25s;
+}
+
+.sidebar-actions.visible {
+  max-height: 52px;
+  padding: 10px 20px;
+  opacity: 1;
+}
+
+/* Sidebar scroll body */
+.sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.sidebar-body::-webkit-scrollbar { width: 3px; }
+.sidebar-body::-webkit-scrollbar-track { background: transparent; }
+.sidebar-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.sidebar-empty {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+/* Batch group */
+.batch-group {
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  animation: batchIn 0.35s var(--ease-out-expo);
+}
+
+@keyframes batchIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.batch-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 2;
+}
+
+.batch-header:hover { background: var(--surface); }
+
+.batch-left-bar {
+  width: 2px;
+  border-radius: 1px;
+  background: var(--border2);
+  align-self: stretch;
+  flex-shrink: 0;
+  animation: barGrow 0.4s var(--ease-out-expo);
+}
+
+@keyframes barGrow {
+  from { transform: scaleY(0); transform-origin: top; }
+  to   { transform: scaleY(1); }
+}
+
+.batch-meta { flex: 1; }
+
+.batch-name {
+  font-size: 11px;
+  color: var(--text);
+  letter-spacing: 0.04em;
+}
+
+.batch-info {
+  font-size: 10px;
+  color: var(--text-3);
+  margin-top: 1px;
+}
+
+.batch-chevron {
+  color: var(--text-3);
+  font-size: 10px;
+  transition: transform 0.25s var(--ease-out-expo);
+  flex-shrink: 0;
+}
+
+.batch-group.collapsed .batch-chevron { transform: rotate(-90deg); }
+
+.batch-check {
+  width: 14px; height: 14px;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.batch-check.checked {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+.batch-check.checked::after {
+  content: '';
+  width: 7px; height: 5px;
+  border-left: 1.5px solid var(--bg);
+  border-bottom: 1.5px solid var(--bg);
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+.batch-delete-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-3);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.batch-delete-btn:hover { color: var(--danger); background: var(--danger-dim); }
+
+/* Batch file list */
+.batch-files {
+  overflow: hidden;
+  transition: max-height 0.35s var(--ease-out-expo);
+}
+
+.batch-group.collapsed .batch-files { max-height: 0 !important; }
+
+/* File item */
+.file-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 20px 9px 34px;
+  border-top: 1px solid var(--border);
+  transition: background 0.12s;
+  animation: fileIn 0.25s var(--ease-out-expo);
+}
+
+@keyframes fileIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.file-item:hover { background: var(--surface); }
+
+.file-check {
+  width: 12px; height: 12px;
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.file-check.checked {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+.file-check.checked::after {
+  content: '';
+  width: 6px; height: 4px;
+  border-left: 1.5px solid var(--bg);
+  border-bottom: 1.5px solid var(--bg);
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+.file-info { flex: 1; min-width: 0; }
+
+.file-name {
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-meta {
+  font-size: 10px;
+  color: var(--text-3);
+  margin-top: 1px;
+}
+
+.file-prediction {
+  font-size: 10px;
+  margin-top: 3px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  display: inline-block;
+  background: var(--accent-dim);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+
+.file-prediction.predicted {
+  color: var(--text);
+  border-color: var(--border2);
+}
+
+/* risk chips — used in sidebar, results rows, and agg title */
+.risk-chip {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: var(--mono);
+  border: 1px solid transparent;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.risk-safe  { color: var(--risk-safe-fg); background: var(--risk-safe-bg); border-color: var(--risk-safe-fg); }
+.risk-low   { color: var(--risk-low-fg);  background: var(--risk-low-bg);  border-color: var(--risk-low-fg);  }
+.risk-mid   { color: var(--risk-mid-fg);  background: var(--risk-mid-bg);  border-color: var(--risk-mid-fg);  }
+.risk-high  { color: var(--risk-high-fg); background: var(--risk-high-bg); border-color: var(--risk-high-fg); }
+
+/* bar fills use risk color via inline style var */
+.bar-fill { background: var(--bar-color, var(--text)); }
+
+/* result row class cell */
+.result-class-wrap {
+  display: flex; align-items: center; gap: 6px; justify-content: flex-end;
+}
+
+.file-rm {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-3);
+  padding: 1px 3px;
+  border-radius: 2px;
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: color 0.12s, background 0.12s;
+}
+.file-rm:hover { color: var(--danger); background: var(--danger-dim); }
+
+@media (max-width: 680px) {
+  .sidebar.open { width: 100%; position: fixed; inset: 52px 0 0 0; z-index: 50; }
+  .main { padding: 24px 20px; }
+  .bar-row { grid-template-columns: 120px 1fr 44px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Topbar ─────────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="logo">
+      <span class="logo-name">NeuroScan</span>
+      <span class="logo-tag">Alzheimer MRI</span>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-btn" id="theme-btn" title="Toggle theme">
+        <span class="theme-icon icon-dark">○</span>
+        <span class="theme-icon icon-light">●</span>
+      </button>
+      <button class="sidebar-toggle" id="sidebar-toggle">
+        <div class="toggle-icon">
+          <span></span><span></span><span></span>
+        </div>
+        Images
+      </button>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- ── Main ───────────────────────────────────────────────────── -->
+    <main class="main">
+
+      <p class="section-label">Upload</p>
+
+      <div class="upload-zone" id="dropzone">
+        <input type="file" id="file-input" multiple accept="image/*,.tiff,.tif,application/zip,.zip" />
+        <div class="upload-zone-inner">
+          <div class="upload-icon">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <span class="upload-primary">Drop files or click to browse</span>
+          <span class="upload-secondary">.jpg · .png · .tiff · .zip</span>
+        </div>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="stats-bar hidden" id="stats-bar">
+        <div class="stat-item">
+          <span class="stat-value" id="stat-total">0</span>
+          <span class="stat-label">Images</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-batches">0</span>
+          <span class="stat-label">Batches</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-predicted">0</span>
+          <span class="stat-label">Predicted</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-value" id="stat-size">0 B</span>
+          <span class="stat-label">Total size</span>
+        </div>
+        <div class="stats-bar-actions">
+          <button class="btn btn-sm btn-danger" id="clear-all-btn">Clear all</button>
+        </div>
+      </div>
+
+      <div class="error-bar" id="error-bar"></div>
+
+      <!-- Controls -->
+      <div class="controls" id="controls">
+        <span class="field-label">Mode</span>
+        <div class="mode-group">
+          <input type="radio" name="mode" id="mode-max" value="max_probability" />
+          <label for="mode-max">Max Prob</label>
+          <input type="radio" name="mode" id="mode-avg" value="avg_probability" checked />
+          <label for="mode-avg">Mean Prob</label>
+          <input type="radio" name="mode" id="mode-per" value="per_image" />
+          <label for="mode-per">Per Image</label>
+        </div>
+        <span class="mode-hint-text" id="mode-hint"></span>
+        <div class="spinner" id="spinner"></div>
+        <button class="btn btn-primary" id="predict-btn" disabled>Run</button>
+      </div>
+
+      <!-- Results -->
+      <div class="results-section" id="results">
+        <div class="results-header">
+          <span class="results-title" id="results-class">—</span>
+          <span class="results-meta" id="results-meta"></span>
+        </div>
+        <div id="results-body"></div>
+      </div>
+
+    </main>
+
+    <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-inner">
+
+        <div class="sidebar-head">
+          <div class="sidebar-title-row">
+            <span class="sidebar-title">Images</span>
+            <span class="sidebar-count" id="sidebar-count">0 files</span>
+          </div>
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all">All</button>
+            <button class="filter-tab" data-filter="predicted">Predicted</button>
+            <button class="filter-tab" data-filter="unpredicted">Unpredicted</button>
+          </div>
+        </div>
+
+        <div class="sidebar-actions" id="sidebar-actions">
+          <button class="btn btn-sm btn-danger" id="delete-selected-btn">Delete selected</button>
+          <button class="btn btn-sm" id="deselect-all-btn">Deselect all</button>
+        </div>
+
+        <div class="sidebar-body" id="sidebar-body">
+          <div class="sidebar-empty" id="sidebar-empty">No images added yet.</div>
+        </div>
+
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════ */
+let batches   = [];   // [{ id, name, files: [fileEntry], timestamp }]
+let batchSel  = {};   // batchId → bool (batch checkbox state)
+let fileSel   = {};   // fileId  → bool
+
+let activeFilter = 'all';
+let batchCounter = 0;
+let fileCounter  = 0;
+
+// fileEntry: { id, file, batchId, name, size, type, prediction: null | { class, confidence } }
+
+/* ═══════════════════════════════════════════════
+   DOM REFS
+═══════════════════════════════════════════════ */
+const dropzone        = document.getElementById('dropzone');
+const fileInput       = document.getElementById('file-input');
+const statsBar        = document.getElementById('stats-bar');
+const statTotal       = document.getElementById('stat-total');
+const statBatches     = document.getElementById('stat-batches');
+const statPredicted   = document.getElementById('stat-predicted');
+const statSize        = document.getElementById('stat-size');
+const clearAllBtn     = document.getElementById('clear-all-btn');
+const errorBar        = document.getElementById('error-bar');
+const predictBtn      = document.getElementById('predict-btn');
+const spinner         = document.getElementById('spinner');
+const modeHint        = document.getElementById('mode-hint');
+const resultsSection  = document.getElementById('results');
+const resultsClass    = document.getElementById('results-class');
+const resultsMeta     = document.getElementById('results-meta');
+const resultsBody     = document.getElementById('results-body');
+const sidebar         = document.getElementById('sidebar');
+const sidebarToggle   = document.getElementById('sidebar-toggle');
+const sidebarCount    = document.getElementById('sidebar-count');
+const sidebarActions  = document.getElementById('sidebar-actions');
+const sidebarBody     = document.getElementById('sidebar-body');
+const sidebarEmpty    = document.getElementById('sidebar-empty');
+const deleteSelBtn    = document.getElementById('delete-selected-btn');
+const deselectAllBtn  = document.getElementById('deselect-all-btn');
+const themeBtn        = document.getElementById('theme-btn');
+
+/* ═══════════════════════════════════════════════
+   THEME
+═══════════════════════════════════════════════ */
+themeBtn.addEventListener('click', () => {
+  const html = document.documentElement;
+  html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+
+/* ═══════════════════════════════════════════════
+   SIDEBAR TOGGLE
+═══════════════════════════════════════════════ */
+sidebarToggle.addEventListener('click', () => {
+  sidebar.classList.toggle('open');
+  sidebarToggle.classList.toggle('active');
+});
+
+/* ═══════════════════════════════════════════════
+   FILTER TABS
+═══════════════════════════════════════════════ */
+document.querySelectorAll('.filter-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    activeFilter = tab.dataset.filter;
+    renderSidebar();
+  });
+});
+
+/* ═══════════════════════════════════════════════
+   MODE HINTS
+═══════════════════════════════════════════════ */
+const MODE_HINTS = {
+  max_probability: 'Highest per-class probability across all images.',
+  avg_probability: 'Mean class probability across all images.',
+  per_image:       'Independent prediction per image.',
+};
+
+function updateModeHint() {
+  const mode = document.querySelector('input[name=mode]:checked').value;
+  modeHint.textContent = MODE_HINTS[mode];
+}
+document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', updateModeHint));
+updateModeHint();
+
+/* ═══════════════════════════════════════════════
+   FILE UTILITIES
+═══════════════════════════════════════════════ */
+function isAccepted(f) {
+  if (f.type.startsWith('image/'))          return true;
+  if (f.type === 'application/zip')          return true;
+  if (f.type === 'application/x-zip-compressed') return true;
+  const n = f.name.toLowerCase();
+  return n.endsWith('.tif') || n.endsWith('.tiff') || n.endsWith('.zip');
+}
+
+function fmtSize(bytes) {
+  if (bytes < 1024)       return bytes + ' B';
+  if (bytes < 1048576)    return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function totalSize() {
+  return batches.flatMap(b => b.files).reduce((s, f) => s + f.size, 0);
+}
+
+function allFiles() {
+  return batches.flatMap(b => b.files);
+}
+
+function predictedCount() {
+  return allFiles().filter(f => f.prediction !== null).length;
+}
+
+/* ═══════════════════════════════════════════════
+   ADD FILES
+═══════════════════════════════════════════════ */
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  handleFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', () => {
+  handleFiles([...fileInput.files]);
+  fileInput.value = '';
+});
+
+function handleFiles(rawFiles) {
+  const valid   = rawFiles.filter(isAccepted);
+  const skipped = rawFiles.length - valid.length;
+  if (!valid.length) { showError(skipped ? 'No accepted files. Use .jpg, .png, .tiff, or .zip.' : 'No files selected.'); return; }
+  showError('');
+  if (skipped) showError(`${skipped} file(s) skipped — unsupported format.`);
+
+  const batchId = ++batchCounter;
+  const timestamp = new Date();
+  const files = valid.map(f => ({
+    id:         ++fileCounter,
+    file:       f,
+    batchId,
+    name:       f.name,
+    size:       f.size,
+    type:       f.type || 'unknown',
+    prediction: null,
+  }));
+
+  batches.push({ id: batchId, name: `Batch ${batchId}`, files, timestamp });
+  batchSel[batchId] = false;
+
+  updateStats(true);
+  renderSidebar();
+  predictBtn.disabled = false;
+
+  // Auto-open sidebar on first batch
+  if (batches.length === 1) {
+    sidebar.classList.add('open');
+    sidebarToggle.classList.add('active');
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   STATS
+═══════════════════════════════════════════════ */
+function updateStats(animate = false) {
+  const total = allFiles().length;
+  const predicted = predictedCount();
+
+  statsBar.classList.toggle('hidden', total === 0);
+
+  function setVal(el, val) {
+    if (el.textContent === String(val)) return;
+    el.textContent = val;
+    if (animate) {
+      el.classList.remove('pulse');
+      void el.offsetWidth; // reflow
+      el.classList.add('pulse');
+    }
+  }
+
+  setVal(statTotal,     total);
+  setVal(statBatches,   batches.length);
+  setVal(statPredicted, predicted);
+  statSize.textContent = fmtSize(totalSize());
+  sidebarCount.textContent = `${total} file${total !== 1 ? 's' : ''}`;
+}
+
+/* ═══════════════════════════════════════════════
+   DELETE HELPERS
+═══════════════════════════════════════════════ */
+function deleteFile(fileId) {
+  batches.forEach(b => { b.files = b.files.filter(f => f.id !== fileId); });
+  batches = batches.filter(b => b.files.length > 0);
+  delete fileSel[fileId];
+  afterDelete();
+}
+
+function deleteBatch(batchId) {
+  const batch = batches.find(b => b.id === batchId);
+  if (batch) batch.files.forEach(f => delete fileSel[f.id]);
+  batches = batches.filter(b => b.id !== batchId);
+  delete batchSel[batchId];
+  afterDelete();
+}
+
+function deleteSelected() {
+  const selFileIds  = new Set(Object.entries(fileSel).filter(([,v])=>v).map(([k])=>+k));
+  const selBatchIds = new Set(Object.entries(batchSel).filter(([,v])=>v).map(([k])=>+k));
+
+  batches = batches
+    .filter(b => !selBatchIds.has(b.id))
+    .map(b => ({ ...b, files: b.files.filter(f => !selFileIds.has(f.id)) }))
+    .filter(b => b.files.length > 0);
+
+  selFileIds.forEach(id => delete fileSel[id]);
+  selBatchIds.forEach(id => delete batchSel[id]);
+  afterDelete();
+}
+
+function clearAll() {
+  batches = []; batchSel = {}; fileSel = {};
+  afterDelete();
+}
+
+function afterDelete() {
+  updateStats(true);
+  renderSidebar();
+  predictBtn.disabled = allFiles().length === 0;
+  updateSelectionUI();
+}
+
+clearAllBtn.addEventListener('click', clearAll);
+deleteSelBtn.addEventListener('click', deleteSelected);
+deselectAllBtn.addEventListener('click', () => {
+  Object.keys(batchSel).forEach(k => batchSel[k] = false);
+  Object.keys(fileSel).forEach(k => fileSel[k] = false);
+  updateSelectionUI();
+  renderSidebar();
+});
+
+function updateSelectionUI() {
+  const anySelected = Object.values(fileSel).some(Boolean) || Object.values(batchSel).some(Boolean);
+  sidebarActions.classList.toggle('visible', anySelected);
+}
+
+/* ═══════════════════════════════════════════════
+   RENDER SIDEBAR
+═══════════════════════════════════════════════ */
+const collapsedBatches = new Set();
+
+function filteredFiles(batch) {
+  return batch.files.filter(f => {
+    if (activeFilter === 'predicted')   return f.prediction !== null;
+    if (activeFilter === 'unpredicted') return f.prediction === null;
+    return true;
+  });
+}
+
+function renderSidebar() {
+  const visibleBatches = batches.filter(b => filteredFiles(b).length > 0);
+
+  if (visibleBatches.length === 0) {
+    sidebarBody.innerHTML = '';
+    sidebarEmpty.style.display = '';
+    sidebarBody.appendChild(sidebarEmpty);
+    return;
+  }
+
+  sidebarEmpty.style.display = 'none';
+
+  // Diff-render: rebuild entire list (fast enough for typical scan counts)
+  sidebarBody.innerHTML = '';
+
+  visibleBatches.forEach((batch, bi) => {
+    const files = filteredFiles(batch);
+    const isCollapsed = collapsedBatches.has(batch.id);
+    const allBatchSel = files.every(f => fileSel[f.id]);
+    const predictedInBatch = files.filter(f => f.prediction).length;
+    const ts = batch.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const group = document.createElement('div');
+    group.className = 'batch-group' + (isCollapsed ? ' collapsed' : '');
+    group.dataset.batchId = batch.id;
+
+    // Compute max-height for animation
+    const itemH = 52; // approx px per file item
+    group.innerHTML = `
+      <div class="batch-header" data-batch="${batch.id}">
+        <div class="batch-check ${batchSel[batch.id] ? 'checked' : ''}" data-batch-check="${batch.id}"></div>
+        <div class="batch-left-bar"></div>
+        <div class="batch-meta">
+          <div class="batch-name">${escHtml(batch.name)}</div>
+          <div class="batch-info">${files.length} file${files.length!==1?'s':''} · ${ts} · ${predictedInBatch} predicted</div>
+        </div>
+        <span class="batch-chevron">▾</span>
+        <button class="batch-delete-btn" data-batch-del="${batch.id}" title="Delete batch">✕</button>
+      </div>
+      <div class="batch-files" style="max-height:${isCollapsed ? 0 : files.length * itemH + 'px'}">
+        ${files.map(f => renderFileItem(f)).join('')}
+      </div>`;
+
+    sidebarBody.appendChild(group);
+  });
+
+  // Event delegation on sidebar body
+  sidebarBody.onclick = handleSidebarClick;
+}
+
+function renderFileItem(f) {
+  const sizeStr = fmtSize(f.size);
+  const ext     = f.name.split('.').pop().toUpperCase();
+  const pred    = f.prediction;
+  const predHtml = pred
+    ? `<span class="file-prediction predicted" style="color:${riskBarColor(pred.class)};border-color:currentColor;background:${(() => { const r=riskOf(pred.class); return `var(--risk-${r.level}-bg)`; })()}">${escHtml(pred.class)} · ${(pred.confidence*100).toFixed(1)}%</span>`
+    : `<span class="file-prediction">Not predicted</span>`;
+
+  return `
+    <div class="file-item" data-file-id="${f.id}">
+      <div class="file-check ${fileSel[f.id] ? 'checked' : ''}" data-file-check="${f.id}"></div>
+      <div class="file-info">
+        <div class="file-name" title="${escHtml(f.name)}">${escHtml(f.name)}</div>
+        <div class="file-meta">${ext} · ${sizeStr}</div>
+        ${predHtml}
+      </div>
+      <button class="file-rm" data-file-del="${f.id}" title="Remove">✕</button>
+    </div>`;
+}
+
+function handleSidebarClick(e) {
+  // Batch collapse
+  const batchHeader = e.target.closest('.batch-header');
+  if (batchHeader && !e.target.dataset.batchCheck && !e.target.dataset.batchDel) {
+    const bid = +batchHeader.dataset.batch;
+    const group = batchHeader.closest('.batch-group');
+    if (collapsedBatches.has(bid)) {
+      collapsedBatches.delete(bid);
+      group.classList.remove('collapsed');
+      const files = filteredFiles(batches.find(b=>b.id===bid));
+      group.querySelector('.batch-files').style.maxHeight = files.length * 52 + 'px';
+    } else {
+      collapsedBatches.add(bid);
+      group.classList.add('collapsed');
+      group.querySelector('.batch-files').style.maxHeight = '0';
+    }
+    return;
+  }
+
+  // Batch checkbox
+  if (e.target.dataset.batchCheck) {
+    const bid = +e.target.dataset.batchCheck;
+    batchSel[bid] = !batchSel[bid];
+    // also select/deselect all files in batch
+    const batch = batches.find(b => b.id === bid);
+    if (batch) batch.files.forEach(f => { fileSel[f.id] = batchSel[bid]; });
+    updateSelectionUI();
+    renderSidebar();
+    return;
+  }
+
+  // File checkbox
+  if (e.target.dataset.fileCheck) {
+    const fid = +e.target.dataset.fileCheck;
+    fileSel[fid] = !fileSel[fid];
+    updateSelectionUI();
+    renderSidebar();
+    return;
+  }
+
+  // Batch delete
+  if (e.target.dataset.batchDel) {
+    deleteBatch(+e.target.dataset.batchDel);
+    return;
+  }
+
+  // File delete
+  if (e.target.dataset.fileDel) {
+    deleteFile(+e.target.dataset.fileDel);
+    return;
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   PREDICT
+═══════════════════════════════════════════════ */
+predictBtn.addEventListener('click', async () => {
+  const unpredicted = allFiles().filter(f => f.prediction === null);
+  if (!unpredicted.length) {
+    showError('All images already have predictions. Upload new images to run again.');
+    return;
+  }
+
+  const mode = document.querySelector('input[name=mode]:checked').value;
+  setLoading(true);
+  showError('');
+
+  const fd = new FormData();
+  unpredicted.forEach(f => fd.append('files', f.file));
+  fd.append('mode', mode);
+
+  try {
+    const res = await fetch('/predict', { method: 'POST', body: fd });
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try { msg = (await res.json()).detail || msg; } catch {}
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    applyPredictions(data, mode, unpredicted);
+    renderResults(data, mode, unpredicted);
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+function applyPredictions(data, mode, files) {
+  // For per_image mode, match by filename
+  if (mode === 'per_image') {
+    data.results.forEach(r => {
+      const fe = files.find(f => f.name === r.filename);
+      if (fe) fe.prediction = { class: r.predicted_class, confidence: r.confidence };
+    });
+  } else {
+    // per_image list in aggregate response
+    (data.per_image || []).forEach(r => {
+      const fe = files.find(f => f.name === r.filename);
+      if (fe) fe.prediction = { class: r.predicted_class, confidence: r.confidence };
+    });
+  }
+  updateStats(true);
+  renderSidebar();
+}
+
+function setLoading(on) {
+  spinner.className = on ? 'spinner active' : 'spinner';
+  predictBtn.disabled = on;
+  predictBtn.textContent = on ? 'Running…' : 'Run';
+}
+
+function showError(msg) {
+  errorBar.textContent = msg;
+  errorBar.className = msg ? 'error-bar visible' : 'error-bar';
+}
+
+/* ═══════════════════════════════════════════════
+   RENDER RESULTS
+═══════════════════════════════════════════════ */
+function renderResults(data, mode, files) {
+  resultsSection.className = 'results-section visible';
+  resultsBody.innerHTML = '';
+
+  if (mode === 'per_image') {
+    resultsClass.textContent = 'Per-image results';
+    resultsMeta.textContent = `${data.results.length} image${data.results.length!==1?'s':''}`;
+    renderPerImage(data.results);
+    return;
+  }
+
+  const probs = mode === 'max_probability' ? data.max_probabilities : data.mean_probabilities;
+  const label = mode === 'max_probability' ? 'max probability' : 'mean probability';
+  const topConf = probs ? Math.max(...Object.values(probs)) : 0;
+
+  resultsClass.innerHTML = escHtml(data.predicted_class) + ' ' + riskChip(data.predicted_class, false);
+  resultsMeta.textContent  = `${data.num_images} image${data.num_images!==1?'s':''} · ${label}`;
+
+  renderAggregate(probs);
+
+  if ((data.per_image || []).length > 1) {
+    const sep = document.createElement('p');
+    sep.className = 'per-image-header';
+    sep.textContent = `Individual (${data.per_image.length})`;
+    resultsBody.appendChild(sep);
+    renderPerImage(data.per_image);
+  }
+}
+
+function renderAggregate(probs) {
+  if (!probs) return;
+  const sorted = Object.entries(probs).sort((a,b) => b[1]-a[1]);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'agg-result';
+
+  const barsHtml = sorted.map(([cls, p], i) => `
+    <div class="bar-row" style="animation-delay:${i*60}ms">
+      <span class="bar-label">${riskChip(cls)}</span>
+      <div class="bar-track"><div class="bar-fill" data-target="${(p*100).toFixed(2)}" style="--bar-color:${riskBarColor(cls)}"></div></div>
+      <span class="bar-val">${(p*100).toFixed(1)}%</span>
+    </div>`).join('');
+
+  wrap.innerHTML = `<div class="agg-bars">${barsHtml}</div>`;
+  resultsBody.appendChild(wrap);
+
+  requestAnimationFrame(() => {
+    wrap.querySelectorAll('.bar-fill').forEach(el => { el.style.width = el.dataset.target + '%'; });
+  });
+}
+
+function renderPerImage(items) {
+  const wrap = document.createElement('div');
+  wrap.className = 'result-rows';
+
+  items.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'result-row';
+    row.style.animationDelay = `${i * 40}ms`;
+    row.innerHTML = `
+      <span class="result-filename">${escHtml(item.filename)}</span>
+      <span class="result-class-wrap">${riskChip(item.predicted_class)}</span>
+      <span class="result-conf">${(item.confidence*100).toFixed(1)}%</span>`;
+    wrap.appendChild(row);
+  });
+
+  resultsBody.appendChild(wrap);
+}
+
+/* ═══════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════ */
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ═══════════════════════════════════════════════
+   RISK CLASSIFICATION
+   NonDemented=safe, VeryMildDemented=low,
+   MildDemented=mid, ModerateDemented=high
+═══════════════════════════════════════════════ */
+const RISK_MAP = {
+  'NonDemented':       { level: 'safe', label: 'Safe'     },
+  'VeryMildDemented':  { level: 'low',  label: 'Very Mild' },
+  'MildDemented':      { level: 'mid',  label: 'Mild'     },
+  'ModerateDemented':  { level: 'high', label: 'Moderate' },
+};
+
+function riskOf(className) {
+  return RISK_MAP[className] || { level: 'low', label: className };
+}
+
+function riskChip(className, showName = true) {
+  const r = riskOf(className);
+  const text = showName ? escHtml(className) : escHtml(r.label);
+  return `<span class="risk-chip risk-${r.level}">${text}</span>`;
+}
+
+function riskBarColor(className) {
+  const vars = { safe: 'var(--risk-safe-fg)', low: 'var(--risk-low-fg)', mid: 'var(--risk-mid-fg)', high: 'var(--risk-high-fg)' };
+  return vars[riskOf(className).level] || 'var(--text)';
+}
+</script>
+</body>
+</html>
