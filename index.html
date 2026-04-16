@@ -31,11 +31,11 @@
   --danger:     #c0392b;
   --danger-dim: #2a1210;
   --shadow:     0 1px 3px rgba(0,0,0,.6), 0 4px 16px rgba(0,0,0,.4);
-  /* risk indicator colors */
   --risk-safe-fg:  #4caf7d; --risk-safe-bg:  rgba(76,175,125,.13);
   --risk-low-fg:   #c9a84c; --risk-low-bg:   rgba(201,168,76,.13);
   --risk-mid-fg:   #c97c3a; --risk-mid-bg:   rgba(201,124,58,.13);
   --risk-high-fg:  #c0392b; --risk-high-bg:  rgba(192,57,43,.13);
+  --modal-bg:   rgba(0,0,0,0.82);
 }
 
 [data-theme="light"] {
@@ -52,20 +52,18 @@
   --danger:     #8b2615;
   --danger-dim: #f5e8e5;
   --shadow:     0 1px 3px rgba(44,31,20,.1), 0 4px 16px rgba(44,31,20,.06);
-  /* risk indicator colors */
   --risk-safe-fg:  #2e7d52; --risk-safe-bg:  rgba(46,125,82,.1);
   --risk-low-fg:   #9a7020; --risk-low-bg:   rgba(154,112,32,.1);
   --risk-mid-fg:   #9a4e18; --risk-mid-bg:   rgba(154,78,24,.1);
   --risk-high-fg:  #8b2615; --risk-high-bg:  rgba(139,38,21,.1);
+  --modal-bg:   rgba(44,31,20,0.72);
 }
 
 /* ─────────────────────────────────────────────
    RESET & BASE
 ───────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 html { height: 100%; }
-
 body {
   background: var(--bg);
   color: var(--text);
@@ -82,12 +80,7 @@ body {
 /* ─────────────────────────────────────────────
    LAYOUT
 ───────────────────────────────────────────── */
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-}
+.app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 .topbar {
   display: flex;
@@ -102,40 +95,66 @@ body {
   transition: border-color 0.35s var(--ease-in-out);
 }
 
-.body {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
+.body { display: flex; flex: 1; overflow: hidden; }
 
 /* ─────────────────────────────────────────────
    TOPBAR
 ───────────────────────────────────────────── */
-.logo {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
+.logo { display: flex; align-items: baseline; gap: 10px; }
+.logo-name { font-family: var(--serif); font-size: 18px; letter-spacing: -0.02em; color: var(--text); }
+.logo-tag  { font-size: 10px; color: var(--text-3); letter-spacing: 0.12em; text-transform: uppercase; }
 
-.logo-name {
-  font-family: var(--serif);
-  font-size: 18px;
-  letter-spacing: -0.02em;
-  color: var(--text);
-}
+.topbar-right { display: flex; align-items: center; gap: 16px; }
 
-.logo-tag {
-  font-size: 10px;
-  color: var(--text-3);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.topbar-right {
+/* Auto-explain toggle */
+.explain-toggle {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
 }
+
+.explain-toggle-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  transition: color 0.2s;
+}
+
+.explain-toggle:hover .explain-toggle-label { color: var(--text-2); }
+
+.toggle-switch {
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  position: relative;
+  transition: background 0.25s var(--ease-out-expo), border-color 0.25s;
+  flex-shrink: 0;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--text-3);
+  transition: transform 0.25s var(--ease-out-expo), background 0.25s;
+}
+
+.explain-toggle.on .toggle-switch {
+  background: var(--text);
+  border-color: var(--text);
+}
+.explain-toggle.on .toggle-switch::after {
+  transform: translateX(14px);
+  background: var(--bg);
+}
+.explain-toggle.on .explain-toggle-label { color: var(--text-2); }
 
 /* Theme toggle */
 .theme-btn {
@@ -153,14 +172,9 @@ body {
 }
 .theme-btn:hover { border-color: var(--border2); color: var(--text); }
 
-.theme-icon {
-  position: absolute;
-  font-size: 14px;
-  transition: transform 0.4s var(--ease-out-expo), opacity 0.3s;
-}
+.theme-icon { position: absolute; font-size: 14px; transition: transform 0.4s var(--ease-out-expo), opacity 0.3s; }
 .icon-dark  { transform: translateY(0);    opacity: 1; }
 .icon-light { transform: translateY(28px); opacity: 0; }
-
 [data-theme="light"] .icon-dark  { transform: translateY(-28px); opacity: 0; }
 [data-theme="light"] .icon-light { transform: translateY(0);     opacity: 1; }
 
@@ -182,23 +196,12 @@ body {
 }
 .sidebar-toggle:hover { border-color: var(--border2); color: var(--text); background: var(--surface); }
 
-.toggle-icon {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 14px;
-}
-.toggle-icon span {
-  display: block;
-  height: 1px;
-  background: currentColor;
-  transition: width 0.3s var(--ease-out-expo), transform 0.3s var(--ease-out-expo);
-}
+.toggle-icon { display: flex; flex-direction: column; gap: 3px; width: 14px; }
+.toggle-icon span { display: block; height: 1px; background: currentColor; transition: width 0.3s var(--ease-out-expo); }
 .toggle-icon span:nth-child(1) { width: 14px; }
 .toggle-icon span:nth-child(2) { width: 10px; }
-.toggle-icon span:nth-child(3) { width: 6px; }
-
-.sidebar-toggle.active .toggle-icon span:nth-child(1) { width: 6px; }
+.toggle-icon span:nth-child(3) { width: 6px;  }
+.sidebar-toggle.active .toggle-icon span:nth-child(1) { width: 6px;  }
 .sidebar-toggle.active .toggle-icon span:nth-child(3) { width: 14px; }
 
 /* ─────────────────────────────────────────────
@@ -210,7 +213,6 @@ body {
   padding: 40px 48px;
   transition: padding 0.4s var(--ease-out-expo);
 }
-
 .main::-webkit-scrollbar { width: 4px; }
 .main::-webkit-scrollbar-track { background: transparent; }
 .main::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
@@ -237,24 +239,10 @@ body {
   transition: border-color 0.25s, background 0.25s;
   margin-bottom: 24px;
 }
+.upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.upload-zone:hover { border-color: var(--border2); background: var(--surface); }
+.upload-zone.drag-over { border-color: var(--text-2); background: var(--surface); }
 
-.upload-zone input[type=file] {
-  position: absolute; inset: 0;
-  opacity: 0; cursor: pointer;
-  width: 100%; height: 100%;
-}
-
-.upload-zone:hover {
-  border-color: var(--border2);
-  background: var(--surface);
-}
-
-.upload-zone.drag-over {
-  border-color: var(--text-2);
-  background: var(--surface);
-}
-
-/* Scan-line animation on drag */
 .upload-zone::before {
   content: '';
   position: absolute;
@@ -262,27 +250,12 @@ body {
   height: 1px;
   background: var(--text-3);
   top: -100%;
-  transition: none;
   opacity: 0;
 }
+.upload-zone.drag-over::before { opacity: 1; animation: scanline 1.2s linear infinite; }
+@keyframes scanline { from { top: -2%; } to { top: 102%; } }
 
-.upload-zone.drag-over::before {
-  opacity: 1;
-  animation: scanline 1.2s linear infinite;
-}
-
-@keyframes scanline {
-  from { top: -2%; }
-  to   { top: 102%; }
-}
-
-.upload-zone-inner {
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
+.upload-zone-inner { pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 
 .upload-icon {
   width: 36px; height: 36px;
@@ -293,28 +266,15 @@ body {
   margin-bottom: 4px;
   transition: border-color 0.25s, transform 0.25s var(--ease-out-expo);
 }
-
 .upload-zone:hover .upload-icon,
-.upload-zone.drag-over .upload-icon {
-  border-color: var(--text-2);
-  transform: translateY(-2px);
-}
-
+.upload-zone.drag-over .upload-icon { border-color: var(--text-2); transform: translateY(-2px); }
 .upload-icon svg { width: 16px; height: 16px; stroke: var(--text-2); fill: none; stroke-width: 1.5; }
 
-.upload-primary {
-  font-size: 13px;
-  color: var(--text);
-}
-
-.upload-secondary {
-  font-size: 11px;
-  color: var(--text-3);
-  letter-spacing: 0.04em;
-}
+.upload-primary   { font-size: 13px; color: var(--text); }
+.upload-secondary { font-size: 11px; color: var(--text-3); letter-spacing: 0.04em; }
 
 /* ─────────────────────────────────────────────
-   UPLOAD STATS BAR
+   STATS BAR
 ───────────────────────────────────────────── */
 .stats-bar {
   display: flex;
@@ -327,19 +287,9 @@ body {
   margin-bottom: 28px;
   transition: opacity 0.3s, transform 0.3s var(--ease-out-expo);
 }
+.stats-bar.hidden { opacity: 0; transform: translateY(-6px); pointer-events: none; }
 
-.stats-bar.hidden {
-  opacity: 0;
-  transform: translateY(-6px);
-  pointer-events: none;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
+.stat-item { display: flex; flex-direction: column; gap: 2px; }
 .stat-value {
   font-size: 20px;
   font-family: var(--serif);
@@ -347,64 +297,20 @@ body {
   line-height: 1;
   transition: transform 0.3s var(--ease-out-expo);
 }
-
-.stat-value.pulse {
-  animation: statpulse 0.4s var(--ease-out-expo);
-}
-
-@keyframes statpulse {
-  0%   { transform: scale(1); }
-  40%  { transform: scale(1.18); }
-  100% { transform: scale(1); }
-}
-
-.stat-label {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-3);
-}
-
-.stat-divider {
-  width: 1px;
-  height: 28px;
-  background: var(--border);
-}
-
-.stats-bar-actions {
-  margin-left: auto;
-  display: flex;
-  gap: 8px;
-}
+.stat-value.pulse { animation: statpulse 0.4s var(--ease-out-expo); }
+@keyframes statpulse { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.stat-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+.stat-divider { width: 1px; height: 28px; background: var(--border); }
+.stats-bar-actions { margin-left: auto; display: flex; gap: 8px; }
 
 /* ─────────────────────────────────────────────
    CONTROLS
 ───────────────────────────────────────────── */
-.controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 28px;
-}
+.controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+.field-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); white-space: nowrap; }
 
-.field-label {
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  white-space: nowrap;
-}
-
-.mode-group {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
+.mode-group { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .mode-group input[type=radio] { display: none; }
-
 .mode-group label {
   padding: 7px 14px;
   font-size: 11px;
@@ -415,14 +321,8 @@ body {
   border-right: 1px solid var(--border);
   white-space: nowrap;
 }
-
 .mode-group label:last-child { border-right: none; }
-
-.mode-group input:checked + label {
-  background: var(--surface2);
-  color: var(--text);
-}
-
+.mode-group input:checked + label { background: var(--surface2); color: var(--text); }
 .mode-group label:hover { color: var(--text); background: var(--surface); }
 
 .mode-hint-text {
@@ -434,7 +334,6 @@ body {
   background: var(--surface);
   flex: 1;
   min-width: 200px;
-  transition: opacity 0.2s;
 }
 
 /* Buttons */
@@ -451,25 +350,14 @@ body {
   transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
   white-space: nowrap;
 }
-
 .btn:hover { background: var(--surface); color: var(--text); border-color: var(--border2); }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
-
-.btn-primary {
-  background: var(--text);
-  color: var(--bg);
-  border-color: var(--text);
-}
+.btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
 .btn-primary:hover { opacity: 0.85; background: var(--text); color: var(--bg); }
-
 .btn-danger { color: var(--danger); border-color: var(--danger-dim); }
 .btn-danger:hover { background: var(--danger-dim); color: var(--danger); }
-
-.btn-sm {
-  padding: 4px 10px;
-  font-size: 10px;
-}
+.btn-sm { padding: 4px 10px; font-size: 10px; }
 
 /* Spinner */
 .spinner {
@@ -498,73 +386,20 @@ body {
   animation: slideDown 0.25s var(--ease-out-expo);
 }
 .error-bar.visible { display: block; }
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ─────────────────────────────────────────────
    RESULTS
 ───────────────────────────────────────────── */
 .results-section { display: none; }
-.results-section.visible {
-  display: block;
-  animation: fadeUp 0.4s var(--ease-out-expo);
-}
+.results-section.visible { display: block; animation: fadeUp 0.4s var(--ease-out-expo); }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+.results-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+.results-title { font-family: var(--serif); font-size: 22px; color: var(--text); }
+.results-meta  { font-size: 11px; color: var(--text-3); }
 
-.results-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.results-title {
-  font-family: var(--serif);
-  font-size: 22px;
-  color: var(--text);
-}
-
-.results-meta {
-  font-size: 11px;
-  color: var(--text-3);
-}
-
-/* Aggregate result */
-.agg-result {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  margin-bottom: 24px;
-}
-
-.agg-top {
-  padding: 24px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
-}
-
-.agg-class {
-  font-family: var(--serif);
-  font-size: 32px;
-  font-style: italic;
-  color: var(--text);
-  line-height: 1;
-}
-
-.agg-confidence {
-  font-size: 12px;
-  color: var(--text-2);
-}
-
+.agg-result { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
 .agg-bars { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
 
 .bar-row {
@@ -576,17 +411,12 @@ body {
   transform: translateX(-8px);
   animation: barIn 0.35s var(--ease-out-expo) forwards;
 }
-
-@keyframes barIn {
-  to { opacity: 1; transform: translateX(0); }
-}
-
+@keyframes barIn { to { opacity: 1; transform: translateX(0); } }
 .bar-label { font-size: 11px; color: var(--text-2); }
 .bar-track { height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
 .bar-fill  { height: 100%; background: var(--text); border-radius: 1px; width: 0; transition: width 0.7s var(--ease-out-expo); }
 .bar-val   { font-size: 11px; color: var(--text-3); text-align: right; }
 
-/* Per image results */
 .per-image-header {
   font-size: 10px;
   letter-spacing: 0.12em;
@@ -597,10 +427,9 @@ body {
 }
 
 .result-rows { display: flex; flex-direction: column; }
-
 .result-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   align-items: center;
   gap: 16px;
   padding: 12px 0;
@@ -608,17 +437,41 @@ body {
   opacity: 0;
   animation: rowIn 0.3s var(--ease-out-expo) forwards;
 }
-
-@keyframes rowIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
+@keyframes rowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .result-row:last-child { border-bottom: none; }
-
 .result-filename { font-size: 12px; color: var(--text-2); }
-.result-class { font-size: 12px; color: var(--text); }
-.result-conf { font-size: 11px; color: var(--text-3); text-align: right; }
+.result-class    { font-size: 12px; color: var(--text); }
+.result-conf     { font-size: 11px; color: var(--text-3); text-align: right; }
+.result-class-wrap { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+
+/* Explain button in result rows */
+.btn-explain {
+  padding: 3px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  color: var(--text-3);
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.btn-explain:hover { background: var(--surface); color: var(--text); border-color: var(--border2); }
+.btn-explain.loading { opacity: 0.5; cursor: wait; }
+.btn-explain.has-cam { color: var(--text-2); border-color: var(--border2); }
+.btn-explain .explain-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--text-3);
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.btn-explain.has-cam .explain-dot { background: var(--risk-safe-fg); }
 
 /* ─────────────────────────────────────────────
    SIDEBAR
@@ -630,54 +483,17 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition:
-    width 0.45s var(--ease-out-expo),
-    border-width 0.45s var(--ease-out-expo);
+  transition: width 0.45s var(--ease-out-expo), border-width 0.45s var(--ease-out-expo);
 }
+.sidebar.open { width: 340px; border-left-width: 1px; }
 
-.sidebar.open {
-  width: 340px;
-  border-left-width: 1px;
-}
+.sidebar-inner { width: 340px; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.sidebar-head { padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sidebar-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sidebar-title { font-family: var(--serif); font-size: 15px; font-style: italic; }
+.sidebar-count { font-size: 11px; color: var(--text-3); }
 
-.sidebar-inner {
-  width: 340px;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-
-.sidebar-head {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.sidebar-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.sidebar-title {
-  font-family: var(--serif);
-  font-size: 15px;
-  font-style: italic;
-}
-
-.sidebar-count {
-  font-size: 11px;
-  color: var(--text-3);
-}
-
-/* Filter tabs */
-.filter-tabs {
-  display: flex;
-  gap: 4px;
-}
-
+.filter-tabs { display: flex; gap: 4px; }
 .filter-tab {
   padding: 4px 10px;
   border-radius: 4px;
@@ -690,11 +506,9 @@ body {
   color: var(--text-3);
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-
 .filter-tab:hover { color: var(--text-2); background: var(--surface); }
 .filter-tab.active { color: var(--text); background: var(--surface2); border-color: var(--border); }
 
-/* Sidebar bulk actions */
 .sidebar-actions {
   padding: 10px 20px;
   border-bottom: 1px solid var(--border);
@@ -707,42 +521,17 @@ body {
   opacity: 0;
   transition: max-height 0.3s var(--ease-out-expo), padding 0.3s, opacity 0.25s;
 }
+.sidebar-actions.visible { max-height: 52px; padding: 10px 20px; opacity: 1; }
 
-.sidebar-actions.visible {
-  max-height: 52px;
-  padding: 10px 20px;
-  opacity: 1;
-}
-
-/* Sidebar scroll body */
-.sidebar-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
+.sidebar-body { flex: 1; overflow-y: auto; padding: 0; }
 .sidebar-body::-webkit-scrollbar { width: 3px; }
 .sidebar-body::-webkit-scrollbar-track { background: transparent; }
 .sidebar-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
-.sidebar-empty {
-  padding: 48px 20px;
-  text-align: center;
-  color: var(--text-3);
-  font-size: 12px;
-}
+.sidebar-empty { padding: 48px 20px; text-align: center; color: var(--text-3); font-size: 12px; }
 
-/* Batch group */
-.batch-group {
-  border-bottom: 1px solid var(--border);
-  overflow: hidden;
-  animation: batchIn 0.35s var(--ease-out-expo);
-}
-
-@keyframes batchIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+.batch-group { border-bottom: 1px solid var(--border); overflow: hidden; animation: batchIn 0.35s var(--ease-out-expo); }
+@keyframes batchIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
 .batch-header {
   display: flex;
@@ -756,44 +545,16 @@ body {
   background: var(--bg);
   z-index: 2;
 }
-
 .batch-header:hover { background: var(--surface); }
 
-.batch-left-bar {
-  width: 2px;
-  border-radius: 1px;
-  background: var(--border2);
-  align-self: stretch;
-  flex-shrink: 0;
-  animation: barGrow 0.4s var(--ease-out-expo);
-}
-
-@keyframes barGrow {
-  from { transform: scaleY(0); transform-origin: top; }
-  to   { transform: scaleY(1); }
-}
+.batch-left-bar { width: 2px; border-radius: 1px; background: var(--border2); align-self: stretch; flex-shrink: 0; animation: barGrow 0.4s var(--ease-out-expo); }
+@keyframes barGrow { from { transform: scaleY(0); transform-origin: top; } to { transform: scaleY(1); } }
 
 .batch-meta { flex: 1; }
+.batch-name { font-size: 11px; color: var(--text); letter-spacing: 0.04em; }
+.batch-info { font-size: 10px; color: var(--text-3); margin-top: 1px; }
 
-.batch-name {
-  font-size: 11px;
-  color: var(--text);
-  letter-spacing: 0.04em;
-}
-
-.batch-info {
-  font-size: 10px;
-  color: var(--text-3);
-  margin-top: 1px;
-}
-
-.batch-chevron {
-  color: var(--text-3);
-  font-size: 10px;
-  transition: transform 0.25s var(--ease-out-expo);
-  flex-shrink: 0;
-}
-
+.batch-chevron { color: var(--text-3); font-size: 10px; transition: transform 0.25s var(--ease-out-expo); flex-shrink: 0; }
 .batch-group.collapsed .batch-chevron { transform: rotate(-90deg); }
 
 .batch-check {
@@ -806,12 +567,7 @@ body {
   place-items: center;
   transition: background 0.15s, border-color 0.15s;
 }
-
-.batch-check.checked {
-  background: var(--text);
-  border-color: var(--text);
-}
-
+.batch-check.checked { background: var(--text); border-color: var(--text); }
 .batch-check.checked::after {
   content: '';
   width: 7px; height: 5px;
@@ -834,12 +590,7 @@ body {
 }
 .batch-delete-btn:hover { color: var(--danger); background: var(--danger-dim); }
 
-/* Batch file list */
-.batch-files {
-  overflow: hidden;
-  transition: max-height 0.35s var(--ease-out-expo);
-}
-
+.batch-files { overflow: hidden; transition: max-height 0.35s var(--ease-out-expo); }
 .batch-group.collapsed .batch-files { max-height: 0 !important; }
 
 /* File item */
@@ -852,12 +603,7 @@ body {
   transition: background 0.12s;
   animation: fileIn 0.25s var(--ease-out-expo);
 }
-
-@keyframes fileIn {
-  from { opacity: 0; transform: translateX(-6px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
+@keyframes fileIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
 .file-item:hover { background: var(--surface); }
 
 .file-check {
@@ -871,12 +617,7 @@ body {
   place-items: center;
   transition: background 0.15s, border-color 0.15s;
 }
-
-.file-check.checked {
-  background: var(--text);
-  border-color: var(--text);
-}
-
+.file-check.checked { background: var(--text); border-color: var(--text); }
 .file-check.checked::after {
   content: '';
   width: 6px; height: 4px;
@@ -886,20 +627,8 @@ body {
 }
 
 .file-info { flex: 1; min-width: 0; }
-
-.file-name {
-  font-size: 11px;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.file-meta {
-  font-size: 10px;
-  color: var(--text-3);
-  margin-top: 1px;
-}
+.file-name { font-size: 11px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-meta { font-size: 10px; color: var(--text-3); margin-top: 1px; }
 
 .file-prediction {
   font-size: 10px;
@@ -911,35 +640,28 @@ body {
   color: var(--text-2);
   border: 1px solid var(--border);
 }
+.file-prediction.predicted { color: var(--text); border-color: var(--border2); }
 
-.file-prediction.predicted {
-  color: var(--text);
-  border-color: var(--border2);
-}
-
-/* risk chips — used in sidebar, results rows, and agg title */
-.risk-chip {
-  display: inline-block;
-  padding: 2px 7px;
+/* Explain button in sidebar */
+.file-explain-btn {
+  margin-top: 4px;
+  padding: 2px 8px;
   border-radius: 3px;
-  font-size: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
   font-family: var(--mono);
-  border: 1px solid transparent;
-  white-space: nowrap;
-  vertical-align: middle;
+  font-size: 10px;
+  cursor: pointer;
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.risk-safe  { color: var(--risk-safe-fg); background: var(--risk-safe-bg); border-color: var(--risk-safe-fg); }
-.risk-low   { color: var(--risk-low-fg);  background: var(--risk-low-bg);  border-color: var(--risk-low-fg);  }
-.risk-mid   { color: var(--risk-mid-fg);  background: var(--risk-mid-bg);  border-color: var(--risk-mid-fg);  }
-.risk-high  { color: var(--risk-high-fg); background: var(--risk-high-bg); border-color: var(--risk-high-fg); }
-
-/* bar fills use risk color via inline style var */
-.bar-fill { background: var(--bar-color, var(--text)); }
-
-/* result row class cell */
-.result-class-wrap {
-  display: flex; align-items: center; gap: 6px; justify-content: flex-end;
-}
+.file-explain-btn:hover { background: var(--surface2); color: var(--text-2); border-color: var(--border2); }
+.file-explain-btn.loading { opacity: 0.5; cursor: wait; }
+.file-explain-btn.has-cam { color: var(--risk-safe-fg); border-color: var(--risk-safe-fg); background: var(--risk-safe-bg); }
+.file-explain-btn .explain-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
 .file-rm {
   background: transparent;
@@ -956,10 +678,241 @@ body {
 }
 .file-rm:hover { color: var(--danger); background: var(--danger-dim); }
 
+/* Risk chips */
+.risk-chip {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: var(--mono);
+  border: 1px solid transparent;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.risk-safe { color: var(--risk-safe-fg); background: var(--risk-safe-bg); border-color: var(--risk-safe-fg); }
+.risk-low  { color: var(--risk-low-fg);  background: var(--risk-low-bg);  border-color: var(--risk-low-fg);  }
+.risk-mid  { color: var(--risk-mid-fg);  background: var(--risk-mid-bg);  border-color: var(--risk-mid-fg);  }
+.risk-high { color: var(--risk-high-fg); background: var(--risk-high-bg); border-color: var(--risk-high-fg); }
+
+.bar-fill { background: var(--bar-color, var(--text)); }
+
 @media (max-width: 680px) {
   .sidebar.open { width: 100%; position: fixed; inset: 52px 0 0 0; z-index: 50; }
   .main { padding: 24px 20px; }
   .bar-row { grid-template-columns: 120px 1fr 44px; }
+}
+
+/* ─────────────────────────────────────────────
+   EXPLAIN MODAL
+───────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--modal-bg);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s var(--ease-in-out);
+}
+.modal-backdrop.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transform: translateY(16px) scale(0.98);
+  transition: transform 0.35s var(--ease-out-expo);
+}
+.modal-backdrop.visible .modal {
+  transform: translateY(0) scale(1);
+}
+
+/* Modal header */
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.modal-title-block { display: flex; flex-direction: column; gap: 4px; }
+
+.modal-filename {
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 500px;
+}
+
+.modal-class-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-class {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-style: italic;
+  color: var(--text);
+  line-height: 1;
+}
+
+.modal-conf {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.modal-close {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 28px; height: 28px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--text-3);
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.modal-close:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+
+/* Modal body — image panels */
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.modal-body::-webkit-scrollbar { width: 4px; }
+.modal-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.modal-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .modal-panels { grid-template-columns: 1fr; }
+}
+
+.modal-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-panel-label {
+  padding: 8px 12px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.modal-panel-img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+}
+
+/* Modal probability bars */
+.modal-probs {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg);
+}
+
+.modal-prob-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+/* Modal loading state */
+.modal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 0;
+  color: var(--text-3);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.modal-spinner {
+  width: 24px; height: 24px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--text-2);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+/* Caption below images */
+.modal-caption {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.6;
+  padding: 2px 0 4px;
+}
+
+/* Heatmap legend */
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-3);
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  letter-spacing: 0.04em;
+}
+
+.legend-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #3182bd, #41ab5d, #ffff33, #fd8d3c, #e6550d, #a50f15);
 }
 </style>
 </head>
@@ -973,14 +926,19 @@ body {
       <span class="logo-tag">Alzheimer MRI</span>
     </div>
     <div class="topbar-right">
+
+      <!-- Auto-explain toggle -->
+      <div class="explain-toggle" id="explain-toggle" title="When on, every predicted image is automatically explained with EigenCAM">
+        <span class="explain-toggle-label">Auto-explain</span>
+        <div class="toggle-switch"></div>
+      </div>
+
       <button class="theme-btn" id="theme-btn" title="Toggle theme">
         <span class="theme-icon icon-dark">○</span>
         <span class="theme-icon icon-light">●</span>
       </button>
       <button class="sidebar-toggle" id="sidebar-toggle">
-        <div class="toggle-icon">
-          <span></span><span></span><span></span>
-        </div>
+        <div class="toggle-icon"><span></span><span></span><span></span></div>
         Images
       </button>
     </div>
@@ -1004,7 +962,6 @@ body {
         </div>
       </div>
 
-      <!-- Stats bar -->
       <div class="stats-bar hidden" id="stats-bar">
         <div class="stat-item">
           <span class="stat-value" id="stat-total">0</span>
@@ -1032,7 +989,6 @@ body {
 
       <div class="error-bar" id="error-bar"></div>
 
-      <!-- Controls -->
       <div class="controls" id="controls">
         <span class="field-label">Mode</span>
         <div class="mode-group">
@@ -1048,7 +1004,6 @@ body {
         <button class="btn btn-primary" id="predict-btn" disabled>Run</button>
       </div>
 
-      <!-- Results -->
       <div class="results-section" id="results">
         <div class="results-header">
           <span class="results-title" id="results-class">—</span>
@@ -1062,7 +1017,6 @@ body {
     <!-- ── Sidebar ─────────────────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-inner">
-
         <div class="sidebar-head">
           <div class="sidebar-title-row">
             <span class="sidebar-title">Images</span>
@@ -1074,19 +1028,38 @@ body {
             <button class="filter-tab" data-filter="unpredicted">Unpredicted</button>
           </div>
         </div>
-
         <div class="sidebar-actions" id="sidebar-actions">
           <button class="btn btn-sm btn-danger" id="delete-selected-btn">Delete selected</button>
           <button class="btn btn-sm" id="deselect-all-btn">Deselect all</button>
         </div>
-
         <div class="sidebar-body" id="sidebar-body">
           <div class="sidebar-empty" id="sidebar-empty">No images added yet.</div>
         </div>
-
       </div>
     </aside>
 
+  </div><!-- /.body -->
+</div><!-- /.app -->
+
+<!-- ─────────────────────────────────────────────
+     EXPLAIN MODAL
+───────────────────────────────────────────── -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-class-text">
+    <div class="modal-header">
+      <div class="modal-title-block">
+        <span class="modal-filename" id="modal-filename">—</span>
+        <div class="modal-class-row">
+          <span class="modal-class" id="modal-class-text">—</span>
+          <span id="modal-chip"></span>
+          <span class="modal-conf" id="modal-conf"></span>
+        </div>
+      </div>
+      <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <!-- filled dynamically -->
+    </div>
   </div>
 </div>
 
@@ -1094,15 +1067,20 @@ body {
 /* ═══════════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════════ */
-let batches   = [];   // [{ id, name, files: [fileEntry], timestamp }]
-let batchSel  = {};   // batchId → bool (batch checkbox state)
-let fileSel   = {};   // fileId  → bool
+let batches   = [];
+let batchSel  = {};
+let fileSel   = {};
 
-let activeFilter = 'all';
-let batchCounter = 0;
-let fileCounter  = 0;
+let activeFilter  = 'all';
+let batchCounter  = 0;
+let fileCounter   = 0;
+let autoExplain   = false;   // auto-explain toggle state
 
-// fileEntry: { id, file, batchId, name, size, type, prediction: null | { class, confidence } }
+// fileEntry shape:
+// { id, file, batchId, name, size, type,
+//   prediction: null | { class, confidence, probabilities },
+//   explanation: null | { original_b64, overlay_b64 }   ← cleared on delete
+// }
 
 /* ═══════════════════════════════════════════════
    DOM REFS
@@ -1132,6 +1110,14 @@ const sidebarEmpty    = document.getElementById('sidebar-empty');
 const deleteSelBtn    = document.getElementById('delete-selected-btn');
 const deselectAllBtn  = document.getElementById('deselect-all-btn');
 const themeBtn        = document.getElementById('theme-btn');
+const explainToggle   = document.getElementById('explain-toggle');
+const modalBackdrop   = document.getElementById('modal-backdrop');
+const modalClose      = document.getElementById('modal-close');
+const modalFilename   = document.getElementById('modal-filename');
+const modalClassText  = document.getElementById('modal-class-text');
+const modalChip       = document.getElementById('modal-chip');
+const modalConf       = document.getElementById('modal-conf');
+const modalBody       = document.getElementById('modal-body');
 
 /* ═══════════════════════════════════════════════
    THEME
@@ -1139,6 +1125,14 @@ const themeBtn        = document.getElementById('theme-btn');
 themeBtn.addEventListener('click', () => {
   const html = document.documentElement;
   html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+
+/* ═══════════════════════════════════════════════
+   AUTO-EXPLAIN TOGGLE
+═══════════════════════════════════════════════ */
+explainToggle.addEventListener('click', () => {
+  autoExplain = !autoExplain;
+  explainToggle.classList.toggle('on', autoExplain);
 });
 
 /* ═══════════════════════════════════════════════
@@ -1169,7 +1163,6 @@ const MODE_HINTS = {
   avg_probability: 'Mean class probability across all images.',
   per_image:       'Independent prediction per image.',
 };
-
 function updateModeHint() {
   const mode = document.querySelector('input[name=mode]:checked').value;
   modeHint.textContent = MODE_HINTS[mode];
@@ -1181,30 +1174,21 @@ updateModeHint();
    FILE UTILITIES
 ═══════════════════════════════════════════════ */
 function isAccepted(f) {
-  if (f.type.startsWith('image/'))          return true;
-  if (f.type === 'application/zip')          return true;
+  if (f.type.startsWith('image/')) return true;
+  if (f.type === 'application/zip') return true;
   if (f.type === 'application/x-zip-compressed') return true;
   const n = f.name.toLowerCase();
   return n.endsWith('.tif') || n.endsWith('.tiff') || n.endsWith('.zip');
 }
-
 function fmtSize(bytes) {
-  if (bytes < 1024)       return bytes + ' B';
-  if (bytes < 1048576)    return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024)    return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / 1048576).toFixed(1) + ' MB';
 }
-
-function totalSize() {
-  return batches.flatMap(b => b.files).reduce((s, f) => s + f.size, 0);
-}
-
-function allFiles() {
-  return batches.flatMap(b => b.files);
-}
-
-function predictedCount() {
-  return allFiles().filter(f => f.prediction !== null).length;
-}
+function totalSize()     { return batches.flatMap(b => b.files).reduce((s,f) => s + f.size, 0); }
+function allFiles()      { return batches.flatMap(b => b.files); }
+function predictedCount(){ return allFiles().filter(f => f.prediction !== null).length; }
+function fileById(id)    { return allFiles().find(f => f.id === id) || null; }
 
 /* ═══════════════════════════════════════════════
    ADD FILES
@@ -1216,10 +1200,7 @@ dropzone.addEventListener('drop', e => {
   dropzone.classList.remove('drag-over');
   handleFiles([...e.dataTransfer.files]);
 });
-fileInput.addEventListener('change', () => {
-  handleFiles([...fileInput.files]);
-  fileInput.value = '';
-});
+fileInput.addEventListener('change', () => { handleFiles([...fileInput.files]); fileInput.value = ''; });
 
 function handleFiles(rawFiles) {
   const valid   = rawFiles.filter(isAccepted);
@@ -1228,16 +1209,12 @@ function handleFiles(rawFiles) {
   showError('');
   if (skipped) showError(`${skipped} file(s) skipped — unsupported format.`);
 
-  const batchId = ++batchCounter;
+  const batchId   = ++batchCounter;
   const timestamp = new Date();
-  const files = valid.map(f => ({
-    id:         ++fileCounter,
-    file:       f,
-    batchId,
-    name:       f.name,
-    size:       f.size,
-    type:       f.type || 'unknown',
-    prediction: null,
+  const files     = valid.map(f => ({
+    id: ++fileCounter, file: f, batchId,
+    name: f.name, size: f.size, type: f.type || 'unknown',
+    prediction: null, explanation: null,
   }));
 
   batches.push({ id: batchId, name: `Batch ${batchId}`, files, timestamp });
@@ -1247,7 +1224,6 @@ function handleFiles(rawFiles) {
   renderSidebar();
   predictBtn.disabled = false;
 
-  // Auto-open sidebar on first batch
   if (batches.length === 1) {
     sidebar.classList.add('open');
     sidebarToggle.classList.add('active');
@@ -1258,21 +1234,15 @@ function handleFiles(rawFiles) {
    STATS
 ═══════════════════════════════════════════════ */
 function updateStats(animate = false) {
-  const total = allFiles().length;
+  const total     = allFiles().length;
   const predicted = predictedCount();
-
   statsBar.classList.toggle('hidden', total === 0);
 
   function setVal(el, val) {
     if (el.textContent === String(val)) return;
     el.textContent = val;
-    if (animate) {
-      el.classList.remove('pulse');
-      void el.offsetWidth; // reflow
-      el.classList.add('pulse');
-    }
+    if (animate) { el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
   }
-
   setVal(statTotal,     total);
   setVal(statBatches,   batches.length);
   setVal(statPredicted, predicted);
@@ -1289,7 +1259,6 @@ function deleteFile(fileId) {
   delete fileSel[fileId];
   afterDelete();
 }
-
 function deleteBatch(batchId) {
   const batch = batches.find(b => b.id === batchId);
   if (batch) batch.files.forEach(f => delete fileSel[f.id]);
@@ -1297,26 +1266,18 @@ function deleteBatch(batchId) {
   delete batchSel[batchId];
   afterDelete();
 }
-
 function deleteSelected() {
   const selFileIds  = new Set(Object.entries(fileSel).filter(([,v])=>v).map(([k])=>+k));
   const selBatchIds = new Set(Object.entries(batchSel).filter(([,v])=>v).map(([k])=>+k));
-
   batches = batches
     .filter(b => !selBatchIds.has(b.id))
     .map(b => ({ ...b, files: b.files.filter(f => !selFileIds.has(f.id)) }))
     .filter(b => b.files.length > 0);
-
   selFileIds.forEach(id => delete fileSel[id]);
   selBatchIds.forEach(id => delete batchSel[id]);
   afterDelete();
 }
-
-function clearAll() {
-  batches = []; batchSel = {}; fileSel = {};
-  afterDelete();
-}
-
+function clearAll() { batches = []; batchSel = {}; fileSel = {}; afterDelete(); }
 function afterDelete() {
   updateStats(true);
   renderSidebar();
@@ -1332,7 +1293,6 @@ deselectAllBtn.addEventListener('click', () => {
   updateSelectionUI();
   renderSidebar();
 });
-
 function updateSelectionUI() {
   const anySelected = Object.values(fileSel).some(Boolean) || Object.values(batchSel).some(Boolean);
   sidebarActions.classList.toggle('visible', anySelected);
@@ -1353,23 +1313,18 @@ function filteredFiles(batch) {
 
 function renderSidebar() {
   const visibleBatches = batches.filter(b => filteredFiles(b).length > 0);
-
   if (visibleBatches.length === 0) {
     sidebarBody.innerHTML = '';
     sidebarEmpty.style.display = '';
     sidebarBody.appendChild(sidebarEmpty);
     return;
   }
-
   sidebarEmpty.style.display = 'none';
-
-  // Diff-render: rebuild entire list (fast enough for typical scan counts)
   sidebarBody.innerHTML = '';
 
-  visibleBatches.forEach((batch, bi) => {
-    const files = filteredFiles(batch);
+  visibleBatches.forEach(batch => {
+    const files       = filteredFiles(batch);
     const isCollapsed = collapsedBatches.has(batch.id);
-    const allBatchSel = files.every(f => fileSel[f.id]);
     const predictedInBatch = files.filter(f => f.prediction).length;
     const ts = batch.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -1377,8 +1332,7 @@ function renderSidebar() {
     group.className = 'batch-group' + (isCollapsed ? ' collapsed' : '');
     group.dataset.batchId = batch.id;
 
-    // Compute max-height for animation
-    const itemH = 52; // approx px per file item
+    const itemH = 70;
     group.innerHTML = `
       <div class="batch-header" data-batch="${batch.id}">
         <div class="batch-check ${batchSel[batch.id] ? 'checked' : ''}" data-batch-check="${batch.id}"></div>
@@ -1393,11 +1347,9 @@ function renderSidebar() {
       <div class="batch-files" style="max-height:${isCollapsed ? 0 : files.length * itemH + 'px'}">
         ${files.map(f => renderFileItem(f)).join('')}
       </div>`;
-
     sidebarBody.appendChild(group);
   });
 
-  // Event delegation on sidebar body
   sidebarBody.onclick = handleSidebarClick;
 }
 
@@ -1405,9 +1357,19 @@ function renderFileItem(f) {
   const sizeStr = fmtSize(f.size);
   const ext     = f.name.split('.').pop().toUpperCase();
   const pred    = f.prediction;
+  const r       = pred ? riskOf(pred.class) : null;
+
   const predHtml = pred
-    ? `<span class="file-prediction predicted" style="color:${riskBarColor(pred.class)};border-color:currentColor;background:${(() => { const r=riskOf(pred.class); return `var(--risk-${r.level}-bg)`; })()}">${escHtml(pred.class)} · ${(pred.confidence*100).toFixed(1)}%</span>`
+    ? `<span class="file-prediction predicted" style="color:${riskBarColor(pred.class)};border-color:currentColor;background:var(--risk-${r.level}-bg)">${escHtml(pred.class)} · ${(pred.confidence*100).toFixed(1)}%</span>`
     : `<span class="file-prediction">Not predicted</span>`;
+
+  // Only show explain button if image has been predicted
+  const explainHtml = pred
+    ? `<button class="file-explain-btn ${f.explanation ? 'has-cam' : ''}" data-file-explain="${f.id}">
+         <span class="explain-dot"></span>
+         ${f.explanation ? 'View explanation' : 'Explain'}
+       </button>`
+    : '';
 
   return `
     <div class="file-item" data-file-id="${f.id}">
@@ -1416,6 +1378,7 @@ function renderFileItem(f) {
         <div class="file-name" title="${escHtml(f.name)}">${escHtml(f.name)}</div>
         <div class="file-meta">${ext} · ${sizeStr}</div>
         ${predHtml}
+        ${explainHtml}
       </div>
       <button class="file-rm" data-file-del="${f.id}" title="Remove">✕</button>
     </div>`;
@@ -1425,13 +1388,13 @@ function handleSidebarClick(e) {
   // Batch collapse
   const batchHeader = e.target.closest('.batch-header');
   if (batchHeader && !e.target.dataset.batchCheck && !e.target.dataset.batchDel) {
-    const bid = +batchHeader.dataset.batch;
+    const bid   = +batchHeader.dataset.batch;
     const group = batchHeader.closest('.batch-group');
     if (collapsedBatches.has(bid)) {
       collapsedBatches.delete(bid);
       group.classList.remove('collapsed');
-      const files = filteredFiles(batches.find(b=>b.id===bid));
-      group.querySelector('.batch-files').style.maxHeight = files.length * 52 + 'px';
+      const files = filteredFiles(batches.find(b => b.id === bid));
+      group.querySelector('.batch-files').style.maxHeight = files.length * 70 + 'px';
     } else {
       collapsedBatches.add(bid);
       group.classList.add('collapsed');
@@ -1439,20 +1402,15 @@ function handleSidebarClick(e) {
     }
     return;
   }
-
-  // Batch checkbox
   if (e.target.dataset.batchCheck) {
     const bid = +e.target.dataset.batchCheck;
     batchSel[bid] = !batchSel[bid];
-    // also select/deselect all files in batch
     const batch = batches.find(b => b.id === bid);
     if (batch) batch.files.forEach(f => { fileSel[f.id] = batchSel[bid]; });
     updateSelectionUI();
     renderSidebar();
     return;
   }
-
-  // File checkbox
   if (e.target.dataset.fileCheck) {
     const fid = +e.target.dataset.fileCheck;
     fileSel[fid] = !fileSel[fid];
@@ -1460,16 +1418,15 @@ function handleSidebarClick(e) {
     renderSidebar();
     return;
   }
+  if (e.target.dataset.batchDel) { deleteBatch(+e.target.dataset.batchDel); return; }
+  if (e.target.dataset.fileDel)  { deleteFile(+e.target.dataset.fileDel);  return; }
 
-  // Batch delete
-  if (e.target.dataset.batchDel) {
-    deleteBatch(+e.target.dataset.batchDel);
-    return;
-  }
-
-  // File delete
-  if (e.target.dataset.fileDel) {
-    deleteFile(+e.target.dataset.fileDel);
+  // Explain button in sidebar
+  const explainBtn = e.target.closest('[data-file-explain]');
+  if (explainBtn) {
+    const fid = +explainBtn.dataset.fileExplain;
+    const fe  = fileById(fid);
+    if (fe) openExplainModal(fe);
     return;
   }
 }
@@ -1483,7 +1440,6 @@ predictBtn.addEventListener('click', async () => {
     showError('All images already have predictions. Upload new images to run again.');
     return;
   }
-
   const mode = document.querySelector('input[name=mode]:checked').value;
   setLoading(true);
   showError('');
@@ -1502,6 +1458,11 @@ predictBtn.addEventListener('click', async () => {
     const data = await res.json();
     applyPredictions(data, mode, unpredicted);
     renderResults(data, mode, unpredicted);
+
+    // Auto-explain: fire off explain requests for all newly predicted files
+    if (autoExplain) {
+      unpredicted.forEach(fe => { if (fe.prediction) fetchExplanation(fe); });
+    }
   } catch(e) {
     showError(e.message);
   } finally {
@@ -1510,17 +1471,15 @@ predictBtn.addEventListener('click', async () => {
 });
 
 function applyPredictions(data, mode, files) {
-  // For per_image mode, match by filename
   if (mode === 'per_image') {
     data.results.forEach(r => {
       const fe = files.find(f => f.name === r.filename);
-      if (fe) fe.prediction = { class: r.predicted_class, confidence: r.confidence };
+      if (fe) fe.prediction = { class: r.predicted_class, confidence: r.confidence, probabilities: r.probabilities };
     });
   } else {
-    // per_image list in aggregate response
     (data.per_image || []).forEach(r => {
       const fe = files.find(f => f.name === r.filename);
-      if (fe) fe.prediction = { class: r.predicted_class, confidence: r.confidence };
+      if (fe) fe.prediction = { class: r.predicted_class, confidence: r.confidence, probabilities: r.probabilities };
     });
   }
   updateStats(true);
@@ -1528,15 +1487,132 @@ function applyPredictions(data, mode, files) {
 }
 
 function setLoading(on) {
-  spinner.className = on ? 'spinner active' : 'spinner';
+  spinner.className   = on ? 'spinner active' : 'spinner';
   predictBtn.disabled = on;
   predictBtn.textContent = on ? 'Running…' : 'Run';
 }
 
 function showError(msg) {
   errorBar.textContent = msg;
-  errorBar.className = msg ? 'error-bar visible' : 'error-bar';
+  errorBar.className   = msg ? 'error-bar visible' : 'error-bar';
 }
+
+/* ═══════════════════════════════════════════════
+   FETCH EXPLANATION  (calls /explain endpoint)
+═══════════════════════════════════════════════ */
+async function fetchExplanation(fe) {
+  if (fe.explanation) return fe.explanation;   // cached — reuse
+
+  const fd = new FormData();
+  fd.append('file', fe.file);
+
+  try {
+    const res = await fetch('/explain', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    // Only store if the file still exists (user may have deleted it during fetch)
+    if (fileById(fe.id)) {
+      fe.explanation = { original_b64: data.original_b64, overlay_b64: data.overlay_b64 };
+    }
+    return fe.explanation;
+  } catch(err) {
+    console.error('Explain error:', err);
+    return null;
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   EXPLAIN MODAL
+═══════════════════════════════════════════════ */
+async function openExplainModal(fe) {
+  if (!fe.prediction) return;   // should never happen, but guard
+
+  // Populate header immediately
+  modalFilename.textContent = fe.name;
+  modalClassText.textContent = fe.prediction.class;
+  modalChip.innerHTML = riskChip(fe.prediction.class);
+  modalConf.textContent = `${(fe.prediction.confidence * 100).toFixed(1)}% confidence`;
+
+  // Show modal with loading state
+  modalBody.innerHTML = `
+    <div class="modal-loading">
+      <div class="modal-spinner"></div>
+      <span>Generating EigenCAM explanation…</span>
+    </div>`;
+  modalBackdrop.classList.add('visible');
+  document.body.style.overflow = 'hidden';
+
+  // Fetch (or reuse cached) explanation
+  const expl = await fetchExplanation(fe);
+
+  // If file was deleted while we were fetching, close the modal
+  if (!fileById(fe.id)) { closeModal(); return; }
+
+  if (!expl) {
+    modalBody.innerHTML = `
+      <div class="modal-loading" style="color:var(--danger)">
+        <span>Failed to generate explanation. Please try again.</span>
+      </div>`;
+    renderSidebar();
+    return;
+  }
+
+  // Update sidebar to reflect cached state
+  renderSidebar();
+
+  // Build modal content
+  const probs = fe.prediction.probabilities || {};
+  const sortedProbs = Object.entries(probs).sort((a,b) => b[1]-a[1]);
+
+  const probBarsHtml = sortedProbs.map(([cls, p], i) => `
+    <div class="bar-row" style="animation-delay:${i*50}ms">
+      <span class="bar-label">${riskChip(cls)}</span>
+      <div class="bar-track"><div class="bar-fill" data-target="${(p*100).toFixed(2)}" style="--bar-color:${riskBarColor(cls)}"></div></div>
+      <span class="bar-val">${(p*100).toFixed(1)}%</span>
+    </div>`).join('');
+
+  modalBody.innerHTML = `
+    <div class="modal-panels">
+      <div class="modal-panel">
+        <div class="modal-panel-label">Original MRI</div>
+        <img class="modal-panel-img" src="data:image/png;base64,${expl.original_b64}" alt="Original MRI" />
+      </div>
+      <div class="modal-panel">
+        <div class="modal-panel-label">EigenCAM Explanation</div>
+        <img class="modal-panel-img" src="data:image/png;base64,${expl.overlay_b64}" alt="EigenCAM heatmap overlay" />
+        <div class="heatmap-legend">
+          <span>Low</span>
+          <div class="legend-bar"></div>
+          <span>High activation</span>
+        </div>
+      </div>
+    </div>
+    <p class="modal-caption">
+      Warmer regions (orange → red) indicate areas the model weighted most heavily when predicting
+      <strong>${escHtml(fe.prediction.class)}</strong>.
+      Generated using EigenCAM on the final Swin Transformer stage.
+    </p>
+    <div class="modal-probs">
+      <div class="modal-prob-label">Class probabilities</div>
+      ${probBarsHtml}
+    </div>`;
+
+  // Animate probability bars
+  requestAnimationFrame(() => {
+    modalBody.querySelectorAll('.bar-fill').forEach(el => { el.style.width = el.dataset.target + '%'; });
+  });
+}
+
+function closeModal() {
+  modalBackdrop.classList.remove('visible');
+  document.body.style.overflow = '';
+  // Small delay before clearing content so close animation isn't janky
+  setTimeout(() => { if (!modalBackdrop.classList.contains('visible')) modalBody.innerHTML = ''; }, 350);
+}
+
+modalClose.addEventListener('click', closeModal);
+modalBackdrop.addEventListener('click', e => { if (e.target === modalBackdrop) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 /* ═══════════════════════════════════════════════
    RENDER RESULTS
@@ -1547,34 +1623,32 @@ function renderResults(data, mode, files) {
 
   if (mode === 'per_image') {
     resultsClass.textContent = 'Per-image results';
-    resultsMeta.textContent = `${data.results.length} image${data.results.length!==1?'s':''}`;
-    renderPerImage(data.results);
+    resultsMeta.textContent  = `${data.results.length} image${data.results.length!==1?'s':''}`;
+    renderPerImage(data.results, files);
     return;
   }
 
   const probs = mode === 'max_probability' ? data.max_probabilities : data.mean_probabilities;
   const label = mode === 'max_probability' ? 'max probability' : 'mean probability';
-  const topConf = probs ? Math.max(...Object.values(probs)) : 0;
 
   resultsClass.innerHTML = escHtml(data.predicted_class) + ' ' + riskChip(data.predicted_class, false);
-  resultsMeta.textContent  = `${data.num_images} image${data.num_images!==1?'s':''} · ${label}`;
+  resultsMeta.textContent = `${data.num_images} image${data.num_images!==1?'s':''} · ${label}`;
 
   renderAggregate(probs);
 
   if ((data.per_image || []).length > 1) {
     const sep = document.createElement('p');
-    sep.className = 'per-image-header';
+    sep.className   = 'per-image-header';
     sep.textContent = `Individual (${data.per_image.length})`;
     resultsBody.appendChild(sep);
-    renderPerImage(data.per_image);
+    renderPerImage(data.per_image, files);
   }
 }
 
 function renderAggregate(probs) {
   if (!probs) return;
   const sorted = Object.entries(probs).sort((a,b) => b[1]-a[1]);
-
-  const wrap = document.createElement('div');
+  const wrap   = document.createElement('div');
   wrap.className = 'agg-result';
 
   const barsHtml = sorted.map(([cls, p], i) => `
@@ -1586,28 +1660,56 @@ function renderAggregate(probs) {
 
   wrap.innerHTML = `<div class="agg-bars">${barsHtml}</div>`;
   resultsBody.appendChild(wrap);
-
   requestAnimationFrame(() => {
     wrap.querySelectorAll('.bar-fill').forEach(el => { el.style.width = el.dataset.target + '%'; });
   });
 }
 
-function renderPerImage(items) {
+function renderPerImage(items, fileEntries = []) {
   const wrap = document.createElement('div');
   wrap.className = 'result-rows';
 
   items.forEach((item, i) => {
+    // Match to fileEntry so we can wire up the explain button
+    const fe = fileEntries.find(f => f.name === item.filename) || null;
+
     const row = document.createElement('div');
     row.className = 'result-row';
     row.style.animationDelay = `${i * 40}ms`;
+
+    const hasCam = fe && fe.explanation;
+    const explainBtnHtml = fe
+      ? `<button class="btn-explain ${hasCam ? 'has-cam' : ''}" data-result-explain="${fe.id}">
+           <span class="explain-dot"></span>${hasCam ? 'Explained' : 'Explain'}
+         </button>`
+      : '';
+
     row.innerHTML = `
       <span class="result-filename">${escHtml(item.filename)}</span>
       <span class="result-class-wrap">${riskChip(item.predicted_class)}</span>
-      <span class="result-conf">${(item.confidence*100).toFixed(1)}%</span>`;
+      <span class="result-conf">${(item.confidence*100).toFixed(1)}%</span>
+      ${explainBtnHtml}`;
     wrap.appendChild(row);
   });
 
   resultsBody.appendChild(wrap);
+
+  // Explain button click handler in results area
+  wrap.addEventListener('click', async e => {
+    const btn = e.target.closest('[data-result-explain]');
+    if (!btn) return;
+    const fid = +btn.dataset.resultExplain;
+    const fe  = fileById(fid);
+    if (!fe || !fe.prediction) return;
+
+    btn.classList.add('loading');
+    btn.textContent = 'Loading…';
+    await openExplainModal(fe);
+    // Update button label after modal fetch completes
+    btn.classList.remove('loading');
+    btn.classList.toggle('has-cam', !!fe.explanation);
+    btn.innerHTML = `<span class="explain-dot"></span>${fe.explanation ? 'Explained' : 'Explain'}`;
+  });
 }
 
 /* ═══════════════════════════════════════════════
@@ -1619,31 +1721,21 @@ function escHtml(str) {
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-/* ═══════════════════════════════════════════════
-   RISK CLASSIFICATION
-   NonDemented=safe, VeryMildDemented=low,
-   MildDemented=mid, ModerateDemented=high
-═══════════════════════════════════════════════ */
 const RISK_MAP = {
-  'NonDemented':       { level: 'safe', label: 'Safe'     },
-  'VeryMildDemented':  { level: 'low',  label: 'Very Mild' },
-  'MildDemented':      { level: 'mid',  label: 'Mild'     },
-  'ModerateDemented':  { level: 'high', label: 'Moderate' },
+  'NonDemented':      { level: 'safe', label: 'Safe'      },
+  'VeryMildDemented': { level: 'low',  label: 'Very Mild' },
+  'MildDemented':     { level: 'mid',  label: 'Mild'      },
+  'ModerateDemented': { level: 'high', label: 'Moderate'  },
 };
-
-function riskOf(className) {
-  return RISK_MAP[className] || { level: 'low', label: className };
+function riskOf(className)        { return RISK_MAP[className] || { level: 'low', label: className }; }
+function riskChip(cls, showName=true) {
+  const r = riskOf(cls);
+  const t = showName ? escHtml(cls) : escHtml(r.label);
+  return `<span class="risk-chip risk-${r.level}">${t}</span>`;
 }
-
-function riskChip(className, showName = true) {
-  const r = riskOf(className);
-  const text = showName ? escHtml(className) : escHtml(r.label);
-  return `<span class="risk-chip risk-${r.level}">${text}</span>`;
-}
-
-function riskBarColor(className) {
-  const vars = { safe: 'var(--risk-safe-fg)', low: 'var(--risk-low-fg)', mid: 'var(--risk-mid-fg)', high: 'var(--risk-high-fg)' };
-  return vars[riskOf(className).level] || 'var(--text)';
+function riskBarColor(cls) {
+  const vars = { safe:'var(--risk-safe-fg)', low:'var(--risk-low-fg)', mid:'var(--risk-mid-fg)', high:'var(--risk-high-fg)' };
+  return vars[riskOf(cls).level] || 'var(--text)';
 }
 </script>
 </body>

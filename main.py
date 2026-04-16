@@ -1,4 +1,4 @@
-import io, sys, zipfile
+import io, sys, zipfile, base64
 from pathlib import Path
 from typing import List
 import os
@@ -15,6 +15,10 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from huggingface_hub import snapshot_download
+
+# GradCAM
+from pytorch_grad_cam import EigenCAM
+from pytorch_grad_cam.utils.image import show_cam_on_image
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -33,31 +37,28 @@ IMG_SIZE            = 224
 
 # ─── Load model once at startup ──────────────────────────────────────────────
 @asynccontextmanager
-async def lifespan(app : FastAPI) :
+async def lifespan(app: FastAPI):
     load_model()
     yield
 
-app = FastAPI(title="Alzheimer MRI Classifier", lifespan = lifespan)
+app = FastAPI(title="Alzheimer MRI Classifier", lifespan=lifespan)
 
 _model = None
 _class_names: List[str] = []
 _transform = None
 _class_weights_tensor = None
+_cam = None          # EigenCAM instance, built after model load
 
 
 def load_model():
-    global _model, _class_names, _transform, _class_weights_tensor
-
-
-def load_model():
-    global _model, _class_names, _transform, _class_weights_tensor
+    global _model, _class_names, _transform, _class_weights_tensor, _cam
 
     # Download weights from HF Hub if not present locally
     if not WEIGHTS_PATH.exists():
         print("[INFO] Downloading weights from Hugging Face Hub...")
         SAVE_DIR.mkdir(parents=True, exist_ok=True)
         snapshot_download(
-            repo_id=os.environ["HF_MODEL_REPO"],   # set as Space secret
+            repo_id=os.environ["HF_MODEL_REPO"],
             repo_type="model",
             local_dir=str(SAVE_DIR),
             token=os.environ.get("HF_TOKEN"),
@@ -77,7 +78,7 @@ def load_model():
         class_weights = np.ones(len(_class_names))
     _class_weights_tensor = torch.FloatTensor(class_weights).to(DEVICE)
 
-    model = timm.create_model(model_name = MODEL_NAME, pretrained = False, num_classes = len(_class_names))
+    model = timm.create_model(model_name=MODEL_NAME, pretrained=False, num_classes=len(_class_names))
 
     checkpoint = WEIGHTS_PATH if WEIGHTS_PATH.exists() else BEST_FOLD_PATH
     model.load_state_dict(torch.load(checkpoint, map_location="cpu", weights_only=True))
@@ -88,7 +89,15 @@ def load_model():
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
+
+    # ── EigenCAM setup for Swin ───────────────────────────────────────────────
+    # For Swin, we target the norm layer at the end of the last stage.
+    # layers[-1].blocks[-1].norm2 gives a stable, semantically rich activation map.
+    target_layer = [_model.layers[-1].blocks[-1].norm2]
+    _cam = EigenCAM(model=_model, target_layers=target_layer)
+
     print(f"[INFO] Model loaded from {checkpoint.name}  |  classes={_class_names}  |  device={DEVICE}")
+    print(f"[INFO] EigenCAM ready — target: layers[-1].blocks[-1].norm2")
 
 
 # ─── Inference helpers ───────────────────────────────────────────────────────
@@ -115,7 +124,7 @@ def _pil_to_tensor(pil_img: Image.Image) -> torch.Tensor:
 
 def _predict_image(pil_img: Image.Image) -> dict:
     tensor = _pil_to_tensor(pil_img)
-    probs  = _predict_tensor(tensor)[0]          # shape (n_classes,)
+    probs  = _predict_tensor(tensor)[0]
     pred_idx = int(np.argmax(probs))
     return {
         "predicted_class": _class_names[pred_idx],
@@ -125,7 +134,6 @@ def _predict_image(pil_img: Image.Image) -> dict:
 
 
 def _aggregate_max_prob(results: List[dict]) -> dict:
-    """For each class, take the max probability across all images."""
     if not results:
         raise HTTPException(400, "No valid images found in uploaded files.")
     agg = {c: 0.0 for c in _class_names}
@@ -143,7 +151,6 @@ def _aggregate_max_prob(results: List[dict]) -> dict:
 
 
 def _aggregate_mean_prob(results: List[dict]) -> dict:
-    """For each class, take the mean probability across all images."""
     if not results:
         raise HTTPException(400, "No valid images found in uploaded files.")
     agg = {c: 0.0 for c in _class_names}
@@ -158,6 +165,41 @@ def _aggregate_mean_prob(results: List[dict]) -> dict:
         "mean_probabilities": agg,
         "num_images":         len(results),
     }
+
+
+# ─── EigenCAM explanation helper ─────────────────────────────────────────────
+def _explain_image(pil_img: Image.Image) -> str:
+    """
+    Run EigenCAM on a single PIL image.
+    Returns a base64-encoded PNG of the heatmap overlay (original size).
+    """
+    orig_w, orig_h = pil_img.size
+    img_resized = pil_img.convert("RGB").resize((IMG_SIZE, IMG_SIZE))
+
+    # Normalised float array [0,1] for overlay rendering
+    rgb_float = np.array(img_resized, dtype=np.float32) / 255.0
+
+    tensor = _transform(img_resized).unsqueeze(0).to(DEVICE)
+
+    # EigenCAM does not need gradients; it uses SVD of activations
+    grayscale_cam = _cam(input_tensor=tensor)          # shape (1, H, W)
+    grayscale_cam = grayscale_cam[0]                   # (H, W)
+
+    overlay = show_cam_on_image(rgb_float, grayscale_cam, use_rgb=True)  # uint8 (H,W,3)
+
+    # Resize overlay back to original image dimensions for clean side-by-side display
+    overlay_pil = Image.fromarray(overlay).resize((orig_w, orig_h), Image.LANCZOS)
+
+    buf = io.BytesIO()
+    overlay_pil.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+
+def _pil_to_base64(pil_img: Image.Image) -> str:
+    """Encode a PIL image as base64 PNG (for returning the original alongside the overlay)."""
+    buf = io.BytesIO()
+    pil_img.convert("RGB").save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
@@ -175,7 +217,7 @@ def classes():
 @app.post("/predict")
 async def predict(
     files: List[UploadFile] = File(...),
-    mode: str = Form("avg_probability"),  # "avg_probability" | "max_probability" | "per_image"
+    mode: str = Form("avg_probability"),
 ):
     if _model is None:
         raise HTTPException(503, "Model not loaded. Run train_swin.py first.")
@@ -184,7 +226,6 @@ async def predict(
     for uf in files:
         raw = await uf.read()
 
-        # ── ZIP: unpack and predict each image inside ──
         if uf.filename and uf.filename.endswith(".zip"):
             try:
                 with zipfile.ZipFile(io.BytesIO(raw)) as z:
@@ -196,9 +237,8 @@ async def predict(
                             results.append(res)
             except Exception as exc:
                 raise HTTPException(400, f"Cannot open ZIP '{uf.filename}': {exc}")
-            continue  # ← skip the image-open block below
+            continue
 
-        # ── Single image ──
         try:
             pil = Image.open(io.BytesIO(raw)).convert("RGB")
         except Exception:
@@ -222,11 +262,50 @@ async def predict(
     return JSONResponse(agg)
 
 
+@app.post("/explain")
+async def explain(
+    file: UploadFile = File(...),
+):
+    """
+    Run EigenCAM on a single image.
+    Returns:
+      - original_b64:  base64 PNG of the resized original (224×224)
+      - overlay_b64:   base64 PNG of the GradCAM heatmap overlay
+      - predicted_class, confidence, probabilities
+    """
+    if _model is None:
+        raise HTTPException(503, "Model not loaded.")
+    if _cam is None:
+        raise HTTPException(503, "EigenCAM not initialised.")
+
+    raw = await file.read()
+    try:
+        pil = Image.open(io.BytesIO(raw)).convert("RGB")
+    except Exception:
+        raise HTTPException(400, f"Cannot open file: {file.filename}")
+
+    # Prediction
+    pred = _predict_image(pil)
+
+    # Explanation
+    overlay_b64  = _explain_image(pil)
+    original_b64 = _pil_to_base64(pil.resize((IMG_SIZE, IMG_SIZE)))
+
+    return JSONResponse({
+        "filename":        file.filename,
+        "predicted_class": pred["predicted_class"],
+        "confidence":      pred["confidence"],
+        "probabilities":   pred["probabilities"],
+        "original_b64":    original_b64,
+        "overlay_b64":     overlay_b64,
+    })
+
+
 # ─── Serve the single-page UI ─────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 def ui():
-    html_path = ROOT / "index.html"   # ← always relative to this file, not CWD
+    html_path = ROOT / "index.html"
     if not html_path.exists():
         return HTMLResponse("<h1>index.html not found</h1>", status_code=404)
     return FileResponse(str(html_path))
