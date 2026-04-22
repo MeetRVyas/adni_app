@@ -13,6 +13,7 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+import spaces
 from huggingface_hub import snapshot_download
 
 from package.explainability import explain_image
