@@ -1,8 +1,11 @@
+import os
+from pathlib import Path
 import torch
 from torchvision import transforms, datasets
 from PIL import Image
 import logging
 from package.config import LOG_DIR
+from package.pipeline import run_pipeline
 
 
 class FullDataset(torch.utils.data.Dataset):
@@ -22,6 +25,62 @@ class FullDataset(torch.utils.data.Dataset):
         if self.transform:
             image = self.transform(image)
         return image, label
+
+
+def ensure_pipeline_ready(
+    disease_id: str,
+    data_dir: str,
+    layout: str,
+    registry_dir: str,
+    shards_dir: str,
+    nfolds: int,
+    target_size: int = 224,
+    csv_path=None,
+    auto_run: bool = True,
+) -> bool:
+    """
+    Check whether the BDA registry exists for the given disease.
+    If it doesn't exist and auto_run=True, run the pipeline to create it.
+
+    Returns True if the registry is ready, False otherwise.
+    """
+
+    parquet_path = Path(registry_dir) / f"{disease_id}.parquet"
+
+    if parquet_path.exists():
+        return True
+
+    if not auto_run:
+        print(
+            f"[utils] BDA registry not found: {parquet_path}\n"
+            f"  Run the data pipeline first:\n"
+            f"    python -m data_pipeline.pipeline --disease {disease_id} "
+            f"--source_dir {data_dir} --layout {layout}"
+        )
+        return False
+
+    print(f"[utils] Registry not found for '{disease_id}'. Running pipeline automatically...")
+    try:
+        run_pipeline(
+            disease=disease_id,
+            source_dir=data_dir,
+            layout=layout,
+            source="local",
+            nfolds=nfolds,
+            registry_dir=registry_dir,
+            shards_dir=shards_dir,
+            target_size=target_size,
+            csv=csv_path,
+            build_shards=True,
+            compute_stats=True,
+            validate=True,
+            skip_if_exists=True,
+        )
+        return parquet_path.exists()
+    except Exception as e:
+        print(f"[utils] Pipeline auto-run failed: {e}")
+        print("[utils] Falling back to legacy FullDataset.")
+        return False
 
 
 class Logger:

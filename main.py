@@ -8,7 +8,6 @@ import timm
 import torch
 import torch.nn.functional as F
 from PIL import Image
-import spaces
 from torchvision import transforms
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
@@ -16,9 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from huggingface_hub import snapshot_download
 
-# GradCAM
-from pytorch_grad_cam import EigenCAM
-from pytorch_grad_cam.utils.image import show_cam_on_image
+from package.explainability import explain_image
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -35,6 +32,12 @@ CLASS_WEIGHTS_PATH  = SAVE_DIR / "class_weights.npy"
 DEVICE              = "cuda" if torch.cuda.is_available() else "cpu"
 IMG_SIZE            = 224
 
+# ── Explainability method ─────────────────────────────────────────────────────
+# Swap this string to change the visual explanation strategy globally.
+# Options: eigengradcam | gradcampp | gradcam | scorecam | rise | attention
+EXPLAIN_METHOD: str = "eigengradcam"
+
+
 # ─── Load model once at startup ──────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -47,11 +50,10 @@ _model = None
 _class_names: List[str] = []
 _transform = None
 _class_weights_tensor = None
-_cam = None          # EigenCAM instance, built after model load
 
 
 def load_model():
-    global _model, _class_names, _transform, _class_weights_tensor, _cam
+    global _model, _class_names, _transform, _class_weights_tensor
 
     # Download weights from HF Hub if not present locally
     if not WEIGHTS_PATH.exists():
@@ -90,14 +92,8 @@ def load_model():
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
-    # ── EigenCAM setup for Swin ───────────────────────────────────────────────
-    # For Swin, we target the norm layer at the end of the last stage.
-    # layers[-1].blocks[-1].norm2 gives a stable, semantically rich activation map.
-    target_layer = [_model.layers[-1].blocks[-1].norm2]
-    _cam = EigenCAM(model=_model, target_layers=target_layer)
-
     print(f"[INFO] Model loaded from {checkpoint.name}  |  classes={_class_names}  |  device={DEVICE}")
-    print(f"[INFO] EigenCAM ready — target: layers[-1].blocks[-1].norm2")
+    print(f"[INFO] Explainability method: {EXPLAIN_METHOD}")
 
 
 # ─── Inference helpers ───────────────────────────────────────────────────────
@@ -167,41 +163,6 @@ def _aggregate_mean_prob(results: List[dict]) -> dict:
     }
 
 
-# ─── EigenCAM explanation helper ─────────────────────────────────────────────
-def _explain_image(pil_img: Image.Image) -> str:
-    """
-    Run EigenCAM on a single PIL image.
-    Returns a base64-encoded PNG of the heatmap overlay (original size).
-    """
-    orig_w, orig_h = pil_img.size
-    img_resized = pil_img.convert("RGB").resize((IMG_SIZE, IMG_SIZE))
-
-    # Normalised float array [0,1] for overlay rendering
-    rgb_float = np.array(img_resized, dtype=np.float32) / 255.0
-
-    tensor = _transform(img_resized).unsqueeze(0).to(DEVICE)
-
-    # EigenCAM does not need gradients; it uses SVD of activations
-    grayscale_cam = _cam(input_tensor=tensor)          # shape (1, H, W)
-    grayscale_cam = grayscale_cam[0]                   # (H, W)
-
-    overlay = show_cam_on_image(rgb_float, grayscale_cam, use_rgb=True)  # uint8 (H,W,3)
-
-    # Resize overlay back to original image dimensions for clean side-by-side display
-    overlay_pil = Image.fromarray(overlay).resize((orig_w, orig_h), Image.LANCZOS)
-
-    buf = io.BytesIO()
-    overlay_pil.save(buf, format="PNG")
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
-
-
-def _pil_to_base64(pil_img: Image.Image) -> str:
-    """Encode a PIL image as base64 PNG (for returning the original alongside the overlay)."""
-    buf = io.BytesIO()
-    pil_img.convert("RGB").save(buf, format="PNG")
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
-
-
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -267,16 +228,20 @@ async def explain(
     file: UploadFile = File(...),
 ):
     """
-    Run EigenCAM on a single image.
-    Returns:
-      - original_b64:  base64 PNG of the resized original (224×224)
-      - overlay_b64:   base64 PNG of the GradCAM heatmap overlay
-      - predicted_class, confidence, probabilities
+    Run the configured visual + text explanation on a single image.
+
+    Returns
+    -------
+    {
+        filename, predicted_class, confidence, probabilities,
+        original_b64, overlay_b64,
+        text,        ← natural-language interpretation
+        region,      ← rough anatomical region
+        method,      ← which visual method was used
+    }
     """
     if _model is None:
         raise HTTPException(503, "Model not loaded.")
-    if _cam is None:
-        raise HTTPException(503, "EigenCAM not initialised.")
 
     raw = await file.read()
     try:
@@ -287,17 +252,28 @@ async def explain(
     # Prediction
     pred = _predict_image(pil)
 
-    # Explanation
-    overlay_b64  = _explain_image(pil)
-    original_b64 = _pil_to_base64(pil.resize((IMG_SIZE, IMG_SIZE)))
+    # Visual + text explanation via explainability module
+    expl = explain_image(
+        pil_img         = pil,
+        model           = _model,
+        transform       = _transform,
+        class_names     = _class_names,
+        predicted_class = pred["predicted_class"],
+        confidence      = pred["confidence"],
+        method          = EXPLAIN_METHOD,
+        device          = DEVICE,
+    )
 
     return JSONResponse({
         "filename":        file.filename,
         "predicted_class": pred["predicted_class"],
         "confidence":      pred["confidence"],
         "probabilities":   pred["probabilities"],
-        "original_b64":    original_b64,
-        "overlay_b64":     overlay_b64,
+        "original_b64":    expl["original_b64"],
+        "overlay_b64":     expl["overlay_b64"],
+        "text":            expl["text"],
+        "region":          expl["region"],
+        "method":          expl["method"],
     })
 
 
