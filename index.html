@@ -106,7 +106,6 @@ body {
 
 .topbar-right { display: flex; align-items: center; gap: 16px; }
 
-/* Auto-explain toggle */
 .explain-toggle {
   display: flex;
   align-items: center;
@@ -114,7 +113,6 @@ body {
   cursor: pointer;
   user-select: none;
 }
-
 .explain-toggle-label {
   font-size: 10px;
   letter-spacing: 0.1em;
@@ -122,12 +120,9 @@ body {
   color: var(--text-3);
   transition: color 0.2s;
 }
-
 .explain-toggle:hover .explain-toggle-label { color: var(--text-2); }
-
 .toggle-switch {
-  width: 32px;
-  height: 18px;
+  width: 32px; height: 18px;
   border-radius: 9px;
   border: 1px solid var(--border2);
   background: var(--surface2);
@@ -135,7 +130,6 @@ body {
   transition: background 0.25s var(--ease-out-expo), border-color 0.25s;
   flex-shrink: 0;
 }
-
 .toggle-switch::after {
   content: '';
   position: absolute;
@@ -145,18 +139,10 @@ body {
   background: var(--text-3);
   transition: transform 0.25s var(--ease-out-expo), background 0.25s;
 }
-
-.explain-toggle.on .toggle-switch {
-  background: var(--text);
-  border-color: var(--text);
-}
-.explain-toggle.on .toggle-switch::after {
-  transform: translateX(14px);
-  background: var(--bg);
-}
+.explain-toggle.on .toggle-switch { background: var(--text); border-color: var(--text); }
+.explain-toggle.on .toggle-switch::after { transform: translateX(14px); background: var(--bg); }
 .explain-toggle.on .explain-toggle-label { color: var(--text-2); }
 
-/* Theme toggle */
 .theme-btn {
   width: 32px; height: 32px;
   border: 1px solid var(--border);
@@ -171,14 +157,12 @@ body {
   overflow: hidden;
 }
 .theme-btn:hover { border-color: var(--border2); color: var(--text); }
-
 .theme-icon { position: absolute; font-size: 14px; transition: transform 0.4s var(--ease-out-expo), opacity 0.3s; }
 .icon-dark  { transform: translateY(0);    opacity: 1; }
 .icon-light { transform: translateY(28px); opacity: 0; }
 [data-theme="light"] .icon-dark  { transform: translateY(-28px); opacity: 0; }
 [data-theme="light"] .icon-light { transform: translateY(0);     opacity: 1; }
 
-/* Sidebar toggle */
 .sidebar-toggle {
   display: flex;
   align-items: center;
@@ -195,7 +179,6 @@ body {
   transition: border-color 0.2s, color 0.2s, background 0.2s;
 }
 .sidebar-toggle:hover { border-color: var(--border2); color: var(--text); background: var(--surface); }
-
 .toggle-icon { display: flex; flex-direction: column; gap: 3px; width: 14px; }
 .toggle-icon span { display: block; height: 1px; background: currentColor; transition: width 0.3s var(--ease-out-expo); }
 .toggle-icon span:nth-child(1) { width: 14px; }
@@ -242,7 +225,6 @@ body {
 .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 .upload-zone:hover { border-color: var(--border2); background: var(--surface); }
 .upload-zone.drag-over { border-color: var(--text-2); background: var(--surface); }
-
 .upload-zone::before {
   content: '';
   position: absolute;
@@ -254,9 +236,7 @@ body {
 }
 .upload-zone.drag-over::before { opacity: 1; animation: scanline 1.2s linear infinite; }
 @keyframes scanline { from { top: -2%; } to { top: 102%; } }
-
 .upload-zone-inner { pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-
 .upload-icon {
   width: 36px; height: 36px;
   border: 1px solid var(--border2);
@@ -269,7 +249,6 @@ body {
 .upload-zone:hover .upload-icon,
 .upload-zone.drag-over .upload-icon { border-color: var(--text-2); transform: translateY(-2px); }
 .upload-icon svg { width: 16px; height: 16px; stroke: var(--text-2); fill: none; stroke-width: 1.5; }
-
 .upload-primary   { font-size: 13px; color: var(--text); }
 .upload-secondary { font-size: 11px; color: var(--text-3); letter-spacing: 0.04em; }
 
@@ -288,7 +267,6 @@ body {
   transition: opacity 0.3s, transform 0.3s var(--ease-out-expo);
 }
 .stats-bar.hidden { opacity: 0; transform: translateY(-6px); pointer-events: none; }
-
 .stat-item { display: flex; flex-direction: column; gap: 2px; }
 .stat-value {
   font-size: 20px;
@@ -308,7 +286,6 @@ body {
 ───────────────────────────────────────────── */
 .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
 .field-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); white-space: nowrap; }
-
 .mode-group { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .mode-group input[type=radio] { display: none; }
 .mode-group label {
@@ -324,7 +301,6 @@ body {
 .mode-group label:last-child { border-right: none; }
 .mode-group input:checked + label { background: var(--surface2); color: var(--text); }
 .mode-group label:hover { color: var(--text); background: var(--surface); }
-
 .mode-hint-text {
   font-size: 11px;
   color: var(--text-3);
@@ -359,7 +335,6 @@ body {
 .btn-danger:hover { background: var(--danger-dim); color: var(--danger); }
 .btn-sm { padding: 4px 10px; font-size: 10px; }
 
-/* Spinner */
 .spinner {
   width: 14px; height: 14px;
   border: 1.5px solid var(--border2);
@@ -395,9 +370,11 @@ body {
 .results-section.visible { display: block; animation: fadeUp 0.4s var(--ease-out-expo); }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-.results-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+.results-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 8px; }
+.results-header-left { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .results-title { font-family: var(--serif); font-size: 22px; color: var(--text); }
 .results-meta  { font-size: 11px; color: var(--text-3); }
+.results-actions { display: flex; gap: 8px; }
 
 .agg-result { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
 .agg-bars { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
@@ -444,7 +421,6 @@ body {
 .result-conf     { font-size: 11px; color: var(--text-3); text-align: right; }
 .result-class-wrap { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
 
-/* Explain button in result rows */
 .btn-explain {
   padding: 3px 9px;
   border-radius: 4px;
@@ -474,6 +450,63 @@ body {
 .btn-explain.has-cam .explain-dot { background: var(--risk-safe-fg); }
 
 /* ─────────────────────────────────────────────
+   CONFIDENCE SCATTER (per-image timeline)
+───────────────────────────────────────────── */
+.scatter-section {
+  margin-top: 28px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: none;
+}
+.scatter-section.visible { display: block; animation: fadeUp 0.4s var(--ease-out-expo); }
+
+.scatter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.scatter-title { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-2); }
+.scatter-legend { display: flex; gap: 12px; flex-wrap: wrap; }
+.scatter-legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text-3); }
+.scatter-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+.scatter-canvas-wrap {
+  padding: 20px;
+  background: var(--bg);
+  position: relative;
+}
+
+canvas.scatter-canvas {
+  width: 100%;
+  height: 160px;
+  display: block;
+  cursor: crosshair;
+}
+
+.scatter-tooltip {
+  position: absolute;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-size: 10px;
+  color: var(--text-2);
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 10;
+  max-width: 200px;
+  line-height: 1.5;
+}
+.scatter-tooltip.visible { opacity: 1; }
+.scatter-tooltip strong { color: var(--text); display: block; }
+
+/* ─────────────────────────────────────────────
    SIDEBAR
 ───────────────────────────────────────────── */
 .sidebar {
@@ -486,13 +519,11 @@ body {
   transition: width 0.45s var(--ease-out-expo), border-width 0.45s var(--ease-out-expo);
 }
 .sidebar.open { width: 340px; border-left-width: 1px; }
-
 .sidebar-inner { width: 340px; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .sidebar-head { padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .sidebar-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .sidebar-title { font-family: var(--serif); font-size: 15px; font-style: italic; }
 .sidebar-count { font-size: 11px; color: var(--text-3); }
-
 .filter-tabs { display: flex; gap: 4px; }
 .filter-tab {
   padding: 4px 10px;
@@ -508,7 +539,6 @@ body {
 }
 .filter-tab:hover { color: var(--text-2); background: var(--surface); }
 .filter-tab.active { color: var(--text); background: var(--surface2); border-color: var(--border); }
-
 .sidebar-actions {
   padding: 10px 20px;
   border-bottom: 1px solid var(--border);
@@ -522,17 +552,13 @@ body {
   transition: max-height 0.3s var(--ease-out-expo), padding 0.3s, opacity 0.25s;
 }
 .sidebar-actions.visible { max-height: 52px; padding: 10px 20px; opacity: 1; }
-
 .sidebar-body { flex: 1; overflow-y: auto; padding: 0; }
 .sidebar-body::-webkit-scrollbar { width: 3px; }
 .sidebar-body::-webkit-scrollbar-track { background: transparent; }
 .sidebar-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-
 .sidebar-empty { padding: 48px 20px; text-align: center; color: var(--text-3); font-size: 12px; }
-
 .batch-group { border-bottom: 1px solid var(--border); overflow: hidden; animation: batchIn 0.35s var(--ease-out-expo); }
 @keyframes batchIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-
 .batch-header {
   display: flex;
   align-items: center;
@@ -546,17 +572,13 @@ body {
   z-index: 2;
 }
 .batch-header:hover { background: var(--surface); }
-
 .batch-left-bar { width: 2px; border-radius: 1px; background: var(--border2); align-self: stretch; flex-shrink: 0; animation: barGrow 0.4s var(--ease-out-expo); }
 @keyframes barGrow { from { transform: scaleY(0); transform-origin: top; } to { transform: scaleY(1); } }
-
 .batch-meta { flex: 1; }
 .batch-name { font-size: 11px; color: var(--text); letter-spacing: 0.04em; }
 .batch-info { font-size: 10px; color: var(--text-3); margin-top: 1px; }
-
 .batch-chevron { color: var(--text-3); font-size: 10px; transition: transform 0.25s var(--ease-out-expo); flex-shrink: 0; }
 .batch-group.collapsed .batch-chevron { transform: rotate(-90deg); }
-
 .batch-check {
   width: 14px; height: 14px;
   border: 1px solid var(--border2);
@@ -575,7 +597,6 @@ body {
   border-bottom: 1.5px solid var(--bg);
   transform: rotate(-45deg) translateY(-1px);
 }
-
 .batch-delete-btn {
   background: transparent;
   border: none;
@@ -589,11 +610,8 @@ body {
   flex-shrink: 0;
 }
 .batch-delete-btn:hover { color: var(--danger); background: var(--danger-dim); }
-
 .batch-files { overflow: hidden; transition: max-height 0.35s var(--ease-out-expo); }
 .batch-group.collapsed .batch-files { max-height: 0 !important; }
-
-/* File item */
 .file-item {
   display: flex;
   align-items: flex-start;
@@ -605,7 +623,6 @@ body {
 }
 @keyframes fileIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
 .file-item:hover { background: var(--surface); }
-
 .file-check {
   width: 12px; height: 12px;
   border: 1px solid var(--border2);
@@ -625,11 +642,9 @@ body {
   border-bottom: 1.5px solid var(--bg);
   transform: rotate(-45deg) translateY(-1px);
 }
-
 .file-info { flex: 1; min-width: 0; }
 .file-name { font-size: 11px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .file-meta { font-size: 10px; color: var(--text-3); margin-top: 1px; }
-
 .file-prediction {
   font-size: 10px;
   margin-top: 3px;
@@ -641,8 +656,6 @@ body {
   border: 1px solid var(--border);
 }
 .file-prediction.predicted { color: var(--text); border-color: var(--border2); }
-
-/* Explain button in sidebar */
 .file-explain-btn {
   margin-top: 4px;
   padding: 2px 8px;
@@ -662,7 +675,6 @@ body {
 .file-explain-btn.loading { opacity: 0.5; cursor: wait; }
 .file-explain-btn.has-cam { color: var(--risk-safe-fg); border-color: var(--risk-safe-fg); background: var(--risk-safe-bg); }
 .file-explain-btn .explain-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-
 .file-rm {
   background: transparent;
   border: none;
@@ -693,7 +705,6 @@ body {
 .risk-low  { color: var(--risk-low-fg);  background: var(--risk-low-bg);  border-color: var(--risk-low-fg);  }
 .risk-mid  { color: var(--risk-mid-fg);  background: var(--risk-mid-bg);  border-color: var(--risk-mid-fg);  }
 .risk-high { color: var(--risk-high-fg); background: var(--risk-high-bg); border-color: var(--risk-high-fg); }
-
 .bar-fill { background: var(--bar-color, var(--text)); }
 
 @media (max-width: 680px) {
@@ -720,17 +731,13 @@ body {
   pointer-events: none;
   transition: opacity 0.3s var(--ease-in-out);
 }
-.modal-backdrop.visible {
-  opacity: 1;
-  pointer-events: all;
-}
-
+.modal-backdrop.visible { opacity: 1; pointer-events: all; }
 .modal {
   background: var(--surface);
   border: 1px solid var(--border2);
   border-radius: 12px;
   width: 100%;
-  max-width: 860px;
+  max-width: 900px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -739,11 +746,7 @@ body {
   transform: translateY(16px) scale(0.98);
   transition: transform 0.35s var(--ease-out-expo);
 }
-.modal-backdrop.visible .modal {
-  transform: translateY(0) scale(1);
-}
-
-/* Modal header */
+.modal-backdrop.visible .modal { transform: translateY(0) scale(1); }
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -752,38 +755,11 @@ body {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-
 .modal-title-block { display: flex; flex-direction: column; gap: 4px; }
-
-.modal-filename {
-  font-size: 11px;
-  color: var(--text-3);
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 500px;
-}
-
-.modal-class-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.modal-class {
-  font-family: var(--serif);
-  font-size: 20px;
-  font-style: italic;
-  color: var(--text);
-  line-height: 1;
-}
-
-.modal-conf {
-  font-size: 11px;
-  color: var(--text-3);
-}
-
+.modal-filename { font-size: 11px; color: var(--text-3); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 500px; }
+.modal-class-row { display: flex; align-items: center; gap: 10px; }
+.modal-class { font-family: var(--serif); font-size: 20px; font-style: italic; color: var(--text); line-height: 1; }
+.modal-conf { font-size: 11px; color: var(--text-3); }
 .modal-close {
   background: transparent;
   border: 1px solid var(--border);
@@ -799,8 +775,6 @@ body {
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 .modal-close:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
-
-/* Modal body — image panels */
 .modal-body {
   flex: 1;
   overflow-y: auto;
@@ -811,17 +785,8 @@ body {
 }
 .modal-body::-webkit-scrollbar { width: 4px; }
 .modal-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-
-.modal-panels {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-@media (max-width: 600px) {
-  .modal-panels { grid-template-columns: 1fr; }
-}
-
+.modal-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .modal-panels { grid-template-columns: 1fr; } }
 .modal-panel {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -830,25 +795,8 @@ body {
   display: flex;
   flex-direction: column;
 }
-
-.modal-panel-label {
-  padding: 8px 12px;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.modal-panel-img {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  display: block;
-}
-
-/* Modal probability bars */
+.modal-panel-label { padding: 8px 12px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.modal-panel-img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
 .modal-probs {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -858,16 +806,7 @@ body {
   gap: 10px;
   background: var(--bg);
 }
-
-.modal-prob-label {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  margin-bottom: 4px;
-}
-
-/* Modal loading state */
+.modal-prob-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
 .modal-loading {
   display: flex;
   flex-direction: column;
@@ -879,7 +818,6 @@ body {
   font-size: 11px;
   letter-spacing: 0.06em;
 }
-
 .modal-spinner {
   width: 24px; height: 24px;
   border: 2px solid var(--border2);
@@ -887,16 +825,7 @@ body {
   border-radius: 50%;
   animation: spin 0.75s linear infinite;
 }
-
-/* Caption below images */
-.modal-caption {
-  font-size: 11px;
-  color: var(--text-3);
-  line-height: 1.6;
-  padding: 2px 0 4px;
-}
-
-/* Heatmap legend */
+.modal-caption { font-size: 11px; color: var(--text-3); line-height: 1.6; padding: 2px 0 4px; }
 .heatmap-legend {
   display: flex;
   align-items: center;
@@ -907,12 +836,235 @@ body {
   border-top: 1px solid var(--border);
   letter-spacing: 0.04em;
 }
+.legend-bar { flex: 1; height: 4px; border-radius: 2px; background: linear-gradient(to right, #3182bd, #41ab5d, #ffff33, #fd8d3c, #e6550d, #a50f15); }
 
-.legend-bar {
-  flex: 1;
-  height: 4px;
+/* ─────────────────────────────────────────────
+   CAM SPATIAL STATS (inside explain modal)
+───────────────────────────────────────────── */
+.cam-stats-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.cam-stats-header {
+  padding: 10px 16px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cam-stats-header .region-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--surface2);
+  color: var(--text-2);
+  border: 1px solid var(--border2);
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+.cam-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+.cam-stat-cell {
+  padding: 14px 16px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cam-stat-cell:nth-child(4n) { border-right: none; }
+.cam-stat-cell:nth-last-child(-n+4) { border-bottom: none; }
+.cam-stat-value {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--text);
+  line-height: 1;
+}
+.cam-stat-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+
+/* Activation minimap (8x8 grid) */
+.cam-minimap-wrap {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cam-minimap-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+.cam-minimap {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.cam-minimap-cell {
+  aspect-ratio: 1;
   border-radius: 2px;
-  background: linear-gradient(to right, #3182bd, #41ab5d, #ffff33, #fd8d3c, #e6550d, #a50f15);
+  transition: opacity 0.3s;
+}
+
+/* ─────────────────────────────────────────────
+   BATCH SUMMARY MODAL
+───────────────────────────────────────────── */
+#summary-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  background: var(--modal-bg);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s var(--ease-in-out);
+}
+#summary-backdrop.visible { opacity: 1; pointer-events: all; }
+#summary-modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 780px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transform: translateY(16px) scale(0.98);
+  transition: transform 0.35s var(--ease-out-expo);
+}
+#summary-backdrop.visible #summary-modal { transform: translateY(0) scale(1); }
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.summary-header-left { display: flex; flex-direction: column; gap: 2px; }
+.summary-title { font-family: var(--serif); font-size: 18px; font-style: italic; }
+.summary-subtitle { font-size: 10px; color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase; }
+
+.summary-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.summary-body::-webkit-scrollbar { width: 4px; }
+.summary-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* Top KPIs */
+.summary-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--border);
+}
+.summary-kpi {
+  background: var(--bg);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.summary-kpi-value { font-family: var(--serif); font-size: 24px; color: var(--text); line-height: 1; }
+.summary-kpi-label { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+
+/* Two-column layout for charts */
+.summary-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 580px) { .summary-charts { grid-template-columns: 1fr; } .summary-kpis { grid-template-columns: repeat(2,1fr); } }
+
+.summary-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.summary-card-label {
+  padding: 10px 16px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+}
+.summary-card-body { padding: 16px; }
+
+/* Donut chart */
+.donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.donut-svg { flex-shrink: 0; }
+.donut-legend { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.donut-legend-row { display: flex; align-items: center; gap: 8px; }
+.donut-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.donut-legend-label { font-size: 10px; color: var(--text-2); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.donut-legend-val { font-size: 10px; color: var(--text-3); }
+
+/* Confidence histogram */
+.histogram-wrap { display: flex; flex-direction: column; gap: 8px; }
+.histogram-bars { display: flex; align-items: flex-end; gap: 3px; height: 80px; }
+.hist-bar-col { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; }
+.hist-bar {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  background: var(--text-3);
+  transition: height 0.6s var(--ease-out-expo), background 0.2s;
+  min-height: 2px;
+  cursor: pointer;
+  position: relative;
+}
+.hist-bar:hover { background: var(--text-2); }
+.hist-bar.active { background: var(--text); }
+.histogram-axis { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-3); letter-spacing: 0.04em; }
+
+/* Prob comparison table */
+.prob-compare { display: flex; flex-direction: column; gap: 10px; }
+.prob-compare-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+  font-size: 10px;
+}
+.prob-compare-header { color: var(--text-3); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
+.prob-compare-class { color: var(--text-2); }
+.prob-val { color: var(--text-3); text-align: right; }
+.prob-val.is-max { color: var(--text); }
+
+/* Summary loading */
+.summary-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 0;
+  color: var(--text-3);
+  font-size: 11px;
 }
 </style>
 </head>
@@ -926,13 +1078,10 @@ body {
       <span class="logo-tag">Alzheimer MRI</span>
     </div>
     <div class="topbar-right">
-
-      <!-- Auto-explain toggle -->
-      <div class="explain-toggle" id="explain-toggle" title="When on, every predicted image is automatically explained with EigenCAM">
+      <div class="explain-toggle" id="explain-toggle" title="Auto-explain every predicted image with EigenCAM">
         <span class="explain-toggle-label">Auto-explain</span>
         <div class="toggle-switch"></div>
       </div>
-
       <button class="theme-btn" id="theme-btn" title="Toggle theme">
         <span class="theme-icon icon-dark">○</span>
         <span class="theme-icon icon-light">●</span>
@@ -1004,12 +1153,32 @@ body {
         <button class="btn btn-primary" id="predict-btn" disabled>Run</button>
       </div>
 
+      <!-- Results -->
       <div class="results-section" id="results">
         <div class="results-header">
-          <span class="results-title" id="results-class">—</span>
-          <span class="results-meta" id="results-meta"></span>
+          <div class="results-header-left">
+            <span class="results-title" id="results-class">—</span>
+            <span class="results-meta" id="results-meta"></span>
+          </div>
+          <div class="results-actions">
+            <button class="btn btn-sm" id="summary-btn" style="display:none" title="Open batch summary dashboard">
+              ▦ Batch Summary
+            </button>
+          </div>
         </div>
         <div id="results-body"></div>
+      </div>
+
+      <!-- Confidence Scatter -->
+      <div class="scatter-section" id="scatter-section">
+        <div class="scatter-header">
+          <span class="scatter-title">Per-image confidence</span>
+          <div class="scatter-legend" id="scatter-legend"></div>
+        </div>
+        <div class="scatter-canvas-wrap" id="scatter-wrap">
+          <canvas class="scatter-canvas" id="scatter-canvas"></canvas>
+          <div class="scatter-tooltip" id="scatter-tooltip"></div>
+        </div>
       </div>
 
     </main>
@@ -1038,12 +1207,10 @@ body {
       </div>
     </aside>
 
-  </div><!-- /.body -->
-</div><!-- /.app -->
+  </div>
+</div>
 
-<!-- ─────────────────────────────────────────────
-     EXPLAIN MODAL
-───────────────────────────────────────────── -->
+<!-- ── Explain Modal ──────────────────────────────────────────────────── -->
 <div class="modal-backdrop" id="modal-backdrop">
   <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-class-text">
     <div class="modal-header">
@@ -1057,8 +1224,25 @@ body {
       </div>
       <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
     </div>
-    <div class="modal-body" id="modal-body">
-      <!-- filled dynamically -->
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ── Batch Summary Modal ────────────────────────────────────────────── -->
+<div id="summary-backdrop">
+  <div id="summary-modal" role="dialog" aria-modal="true">
+    <div class="summary-header">
+      <div class="summary-header-left">
+        <span class="summary-title">Batch Summary</span>
+        <span class="summary-subtitle">Statistical overview · /predict/summary</span>
+      </div>
+      <button class="modal-close" id="summary-close" aria-label="Close">✕</button>
+    </div>
+    <div class="summary-body" id="summary-body">
+      <div class="summary-loading">
+        <div class="modal-spinner"></div>
+        <span>Fetching batch statistics…</span>
+      </div>
     </div>
   </div>
 </div>
@@ -1070,17 +1254,13 @@ body {
 let batches   = [];
 let batchSel  = {};
 let fileSel   = {};
-
 let activeFilter  = 'all';
 let batchCounter  = 0;
 let fileCounter   = 0;
-let autoExplain   = false;   // auto-explain toggle state
+let autoExplain   = false;
 
-// fileEntry shape:
-// { id, file, batchId, name, size, type,
-//   prediction: null | { class, confidence, probabilities },
-//   explanation: null | { original_b64, overlay_b64 }   ← cleared on delete
-// }
+// scatter state
+let scatterPoints = [];
 
 /* ═══════════════════════════════════════════════
    DOM REFS
@@ -1101,6 +1281,7 @@ const resultsSection  = document.getElementById('results');
 const resultsClass    = document.getElementById('results-class');
 const resultsMeta     = document.getElementById('results-meta');
 const resultsBody     = document.getElementById('results-body');
+const summaryBtn      = document.getElementById('summary-btn');
 const sidebar         = document.getElementById('sidebar');
 const sidebarToggle   = document.getElementById('sidebar-toggle');
 const sidebarCount    = document.getElementById('sidebar-count');
@@ -1118,6 +1299,14 @@ const modalClassText  = document.getElementById('modal-class-text');
 const modalChip       = document.getElementById('modal-chip');
 const modalConf       = document.getElementById('modal-conf');
 const modalBody       = document.getElementById('modal-body');
+const summaryBackdrop = document.getElementById('summary-backdrop');
+const summaryClose    = document.getElementById('summary-close');
+const summaryBodyEl   = document.getElementById('summary-body');
+const scatterSection  = document.getElementById('scatter-section');
+const scatterCanvas   = document.getElementById('scatter-canvas');
+const scatterWrap     = document.getElementById('scatter-wrap');
+const scatterTooltip  = document.getElementById('scatter-tooltip');
+const scatterLegend   = document.getElementById('scatter-legend');
 
 /* ═══════════════════════════════════════════════
    THEME
@@ -1125,6 +1314,7 @@ const modalBody       = document.getElementById('modal-body');
 themeBtn.addEventListener('click', () => {
   const html = document.documentElement;
   html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  if (scatterPoints.length) renderScatter();
 });
 
 /* ═══════════════════════════════════════════════
@@ -1185,10 +1375,10 @@ function fmtSize(bytes) {
   if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / 1048576).toFixed(1) + ' MB';
 }
-function totalSize()     { return batches.flatMap(b => b.files).reduce((s,f) => s + f.size, 0); }
-function allFiles()      { return batches.flatMap(b => b.files); }
-function predictedCount(){ return allFiles().filter(f => f.prediction !== null).length; }
-function fileById(id)    { return allFiles().find(f => f.id === id) || null; }
+function totalSize()      { return batches.flatMap(b => b.files).reduce((s,f) => s + f.size, 0); }
+function allFiles()       { return batches.flatMap(b => b.files); }
+function predictedCount() { return allFiles().filter(f => f.prediction !== null).length; }
+function fileById(id)     { return allFiles().find(f => f.id === id) || null; }
 
 /* ═══════════════════════════════════════════════
    ADD FILES
@@ -1214,12 +1404,11 @@ function handleFiles(rawFiles) {
   const files     = valid.map(f => ({
     id: ++fileCounter, file: f, batchId,
     name: f.name, size: f.size, type: f.type || 'unknown',
-    prediction: null, explanation: null,
+    prediction: null, explanation: null, camStats: null,
   }));
 
   batches.push({ id: batchId, name: `Batch ${batchId}`, files, timestamp });
   batchSel[batchId] = false;
-
   updateStats(true);
   renderSidebar();
   predictBtn.disabled = false;
@@ -1237,7 +1426,6 @@ function updateStats(animate = false) {
   const total     = allFiles().length;
   const predicted = predictedCount();
   statsBar.classList.toggle('hidden', total === 0);
-
   function setVal(el, val) {
     if (el.textContent === String(val)) return;
     el.textContent = val;
@@ -1283,8 +1471,8 @@ function afterDelete() {
   renderSidebar();
   predictBtn.disabled = allFiles().length === 0;
   updateSelectionUI();
+  rebuildScatter();
 }
-
 clearAllBtn.addEventListener('click', clearAll);
 deleteSelBtn.addEventListener('click', deleteSelected);
 deselectAllBtn.addEventListener('click', () => {
@@ -1332,7 +1520,7 @@ function renderSidebar() {
     group.className = 'batch-group' + (isCollapsed ? ' collapsed' : '');
     group.dataset.batchId = batch.id;
 
-    const itemH = 70;
+    const itemH = 90;
     group.innerHTML = `
       <div class="batch-header" data-batch="${batch.id}">
         <div class="batch-check ${batchSel[batch.id] ? 'checked' : ''}" data-batch-check="${batch.id}"></div>
@@ -1363,7 +1551,6 @@ function renderFileItem(f) {
     ? `<span class="file-prediction predicted" style="color:${riskBarColor(pred.class)};border-color:currentColor;background:var(--risk-${r.level}-bg)">${escHtml(pred.class)} · ${(pred.confidence*100).toFixed(1)}%</span>`
     : `<span class="file-prediction">Not predicted</span>`;
 
-  // Only show explain button if image has been predicted
   const explainHtml = pred
     ? `<button class="file-explain-btn ${f.explanation ? 'has-cam' : ''}" data-file-explain="${f.id}">
          <span class="explain-dot"></span>
@@ -1385,7 +1572,6 @@ function renderFileItem(f) {
 }
 
 function handleSidebarClick(e) {
-  // Batch collapse
   const batchHeader = e.target.closest('.batch-header');
   if (batchHeader && !e.target.dataset.batchCheck && !e.target.dataset.batchDel) {
     const bid   = +batchHeader.dataset.batch;
@@ -1394,7 +1580,7 @@ function handleSidebarClick(e) {
       collapsedBatches.delete(bid);
       group.classList.remove('collapsed');
       const files = filteredFiles(batches.find(b => b.id === bid));
-      group.querySelector('.batch-files').style.maxHeight = files.length * 70 + 'px';
+      group.querySelector('.batch-files').style.maxHeight = files.length * 90 + 'px';
     } else {
       collapsedBatches.add(bid);
       group.classList.add('collapsed');
@@ -1421,7 +1607,6 @@ function handleSidebarClick(e) {
   if (e.target.dataset.batchDel) { deleteBatch(+e.target.dataset.batchDel); return; }
   if (e.target.dataset.fileDel)  { deleteFile(+e.target.dataset.fileDel);  return; }
 
-  // Explain button in sidebar
   const explainBtn = e.target.closest('[data-file-explain]');
   if (explainBtn) {
     const fid = +explainBtn.dataset.fileExplain;
@@ -1458,8 +1643,8 @@ predictBtn.addEventListener('click', async () => {
     const data = await res.json();
     applyPredictions(data, mode, unpredicted);
     renderResults(data, mode, unpredicted);
+    rebuildScatter();
 
-    // Auto-explain: fire off explain requests for all newly predicted files
     if (autoExplain) {
       unpredicted.forEach(fe => { if (fe.prediction) fetchExplanation(fe); });
     }
@@ -1487,8 +1672,8 @@ function applyPredictions(data, mode, files) {
 }
 
 function setLoading(on) {
-  spinner.className   = on ? 'spinner active' : 'spinner';
-  predictBtn.disabled = on;
+  spinner.className      = on ? 'spinner active' : 'spinner';
+  predictBtn.disabled    = on;
   predictBtn.textContent = on ? 'Running…' : 'Run';
 }
 
@@ -1498,10 +1683,10 @@ function showError(msg) {
 }
 
 /* ═══════════════════════════════════════════════
-   FETCH EXPLANATION  (calls /explain endpoint)
+   FETCH EXPLANATION  (/explain)
 ═══════════════════════════════════════════════ */
 async function fetchExplanation(fe) {
-  if (fe.explanation) return fe.explanation;   // cached — reuse
+  if (fe.explanation) return fe.explanation;
 
   const fd = new FormData();
   fd.append('file', fe.file);
@@ -1510,9 +1695,14 @@ async function fetchExplanation(fe) {
     const res = await fetch('/explain', { method: 'POST', body: fd });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    // Only store if the file still exists (user may have deleted it during fetch)
     if (fileById(fe.id)) {
-      fe.explanation = { original_b64: data.original_b64, overlay_b64: data.overlay_b64 };
+      fe.explanation = {
+        original_b64: data.original_b64,
+        overlay_b64:  data.overlay_b64,
+        text:         data.text,
+        region:       data.region,
+        cam_stats:    data.cam_stats,
+      };
     }
     return fe.explanation;
   } catch(err) {
@@ -1522,18 +1712,16 @@ async function fetchExplanation(fe) {
 }
 
 /* ═══════════════════════════════════════════════
-   EXPLAIN MODAL
+   EXPLAIN MODAL (with CAM stats panel)
 ═══════════════════════════════════════════════ */
 async function openExplainModal(fe) {
-  if (!fe.prediction) return;   // should never happen, but guard
+  if (!fe.prediction) return;
 
-  // Populate header immediately
-  modalFilename.textContent = fe.name;
+  modalFilename.textContent  = fe.name;
   modalClassText.textContent = fe.prediction.class;
-  modalChip.innerHTML = riskChip(fe.prediction.class);
-  modalConf.textContent = `${(fe.prediction.confidence * 100).toFixed(1)}% confidence`;
+  modalChip.innerHTML        = riskChip(fe.prediction.class);
+  modalConf.textContent      = `${(fe.prediction.confidence * 100).toFixed(1)}% confidence`;
 
-  // Show modal with loading state
   modalBody.innerHTML = `
     <div class="modal-loading">
       <div class="modal-spinner"></div>
@@ -1542,10 +1730,8 @@ async function openExplainModal(fe) {
   modalBackdrop.classList.add('visible');
   document.body.style.overflow = 'hidden';
 
-  // Fetch (or reuse cached) explanation
   const expl = await fetchExplanation(fe);
 
-  // If file was deleted while we were fetching, close the modal
   if (!fileById(fe.id)) { closeModal(); return; }
 
   if (!expl) {
@@ -1557,11 +1743,9 @@ async function openExplainModal(fe) {
     return;
   }
 
-  // Update sidebar to reflect cached state
   renderSidebar();
 
-  // Build modal content
-  const probs = fe.prediction.probabilities || {};
+  const probs      = fe.prediction.probabilities || {};
   const sortedProbs = Object.entries(probs).sort((a,b) => b[1]-a[1]);
 
   const probBarsHtml = sortedProbs.map(([cls, p], i) => `
@@ -1570,6 +1754,15 @@ async function openExplainModal(fe) {
       <div class="bar-track"><div class="bar-fill" data-target="${(p*100).toFixed(2)}" style="--bar-color:${riskBarColor(cls)}"></div></div>
       <span class="bar-val">${(p*100).toFixed(1)}%</span>
     </div>`).join('');
+
+  // CAM stats panel
+  const cs = expl.cam_stats;
+  const camStatsHtml = cs ? buildCamStatsHtml(cs, expl.region) : '';
+
+  // Natural language text from API
+  const nlText = expl.text
+    ? `<p class="modal-caption" style="background:var(--surface);padding:12px 16px;border-radius:6px;border:1px solid var(--border);color:var(--text-2);font-style:italic;">${escHtml(expl.text)}</p>`
+    : '';
 
   modalBody.innerHTML = `
     <div class="modal-panels">
@@ -1587,39 +1780,506 @@ async function openExplainModal(fe) {
         </div>
       </div>
     </div>
-    <p class="modal-caption">
-      Warmer regions (orange → red) indicate areas the model weighted most heavily when predicting
-      <strong>${escHtml(fe.prediction.class)}</strong>.
-      Generated using EigenCAM on the final Swin Transformer stage.
-    </p>
+    ${nlText}
+    ${camStatsHtml}
     <div class="modal-probs">
       <div class="modal-prob-label">Class probabilities</div>
       ${probBarsHtml}
     </div>`;
 
-  // Animate probability bars
   requestAnimationFrame(() => {
     modalBody.querySelectorAll('.bar-fill').forEach(el => { el.style.width = el.dataset.target + '%'; });
   });
 }
 
+function buildCamStatsHtml(cs, region) {
+  // cs from /explain includes cam_stats: { mean, max, std, coverage_pct, centroid_x, centroid_y, ... }
+  const mean     = cs.mean     != null ? (cs.mean * 100).toFixed(1) + '%'  : '—';
+  const max      = cs.max      != null ? (cs.max  * 100).toFixed(1) + '%'  : '—';
+  const std      = cs.std      != null ? (cs.std  * 100).toFixed(1) + '%'  : '—';
+  const coverage = cs.coverage_pct != null ? cs.coverage_pct.toFixed(1) + '%' : (cs.coverage != null ? (cs.coverage * 100).toFixed(1) + '%' : '—');
+  const cx       = cs.centroid_x   != null ? cs.centroid_x.toFixed(2)   : '—';
+  const cy       = cs.centroid_y   != null ? cs.centroid_y.toFixed(2)   : '—';
+  const entropy  = cs.entropy      != null ? cs.entropy.toFixed(3)       : null;
+
+  const regionHtml = region ? `<span class="region-tag">${escHtml(region)}</span>` : '';
+
+  // Build 8×8 activation minimap if raw data is available
+  let minimapHtml = '';
+  const rawCam = cs.raw || cs.grid || null;
+  if (rawCam && Array.isArray(rawCam)) {
+    const flat = rawCam.flat ? rawCam.flat() : rawCam;
+    const minV = Math.min(...flat);
+    const maxV = Math.max(...flat) || 1;
+    const cells = flat.map(v => {
+      const norm  = (v - minV) / (maxV - minV);
+      const color = camHeatColor(norm);
+      return `<div class="cam-minimap-cell" style="background:${color};opacity:${0.4 + norm*0.6}"></div>`;
+    }).join('');
+    minimapHtml = `
+      <div class="cam-minimap-wrap">
+        <div class="cam-minimap-label">Activation map (downsampled)</div>
+        <div class="cam-minimap">${cells}</div>
+      </div>`;
+  }
+
+  const extraStats = entropy
+    ? `<div class="cam-stat-cell"><div class="cam-stat-value">${entropy}</div><div class="cam-stat-label">Entropy</div></div>`
+    : '';
+
+  return `
+    <div class="cam-stats-panel">
+      <div class="cam-stats-header">
+        <span>GradCAM Spatial Statistics</span>
+        ${regionHtml}
+      </div>
+      <div class="cam-stats-grid">
+        <div class="cam-stat-cell"><div class="cam-stat-value">${mean}</div><div class="cam-stat-label">Mean activation</div></div>
+        <div class="cam-stat-cell"><div class="cam-stat-value">${max}</div><div class="cam-stat-label">Peak activation</div></div>
+        <div class="cam-stat-cell"><div class="cam-stat-value">${std}</div><div class="cam-stat-label">Std deviation</div></div>
+        <div class="cam-stat-cell"><div class="cam-stat-value">${coverage}</div><div class="cam-stat-label">Coverage</div></div>
+        <div class="cam-stat-cell"><div class="cam-stat-value">${cx}</div><div class="cam-stat-label">Centroid X</div></div>
+        <div class="cam-stat-cell"><div class="cam-stat-value">${cy}</div><div class="cam-stat-label">Centroid Y</div></div>
+        ${extraStats}
+      </div>
+      ${minimapHtml}
+    </div>`;
+}
+
+// Map 0–1 to a blue → green → yellow → red gradient (same as heatmap legend)
+function camHeatColor(t) {
+  const stops = [
+    [0,   49, 130, 189],
+    [0.25, 65, 171, 93],
+    [0.5, 255, 255, 51],
+    [0.75, 253, 141, 60],
+    [1,   165,  15, 21],
+  ];
+  let lo = stops[0], hi = stops[stops.length-1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (t >= stops[i][0] && t <= stops[i+1][0]) { lo = stops[i]; hi = stops[i+1]; break; }
+  }
+  const f  = (t - lo[0]) / ((hi[0] - lo[0]) || 1);
+  const r  = Math.round(lo[1] + (hi[1]-lo[1])*f);
+  const g  = Math.round(lo[2] + (hi[2]-lo[2])*f);
+  const b  = Math.round(lo[3] + (hi[3]-lo[3])*f);
+  return `rgb(${r},${g},${b})`;
+}
+
 function closeModal() {
   modalBackdrop.classList.remove('visible');
   document.body.style.overflow = '';
-  // Small delay before clearing content so close animation isn't janky
   setTimeout(() => { if (!modalBackdrop.classList.contains('visible')) modalBody.innerHTML = ''; }, 350);
 }
 
 modalClose.addEventListener('click', closeModal);
 modalBackdrop.addEventListener('click', e => { if (e.target === modalBackdrop) closeModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeSummary(); } });
+
+/* ═══════════════════════════════════════════════
+   BATCH SUMMARY MODAL  (/predict/summary)
+═══════════════════════════════════════════════ */
+summaryBtn.addEventListener('click', openSummaryModal);
+summaryClose.addEventListener('click', closeSummary);
+summaryBackdrop.addEventListener('click', e => { if (e.target === summaryBackdrop) closeSummary(); });
+
+function closeSummary() {
+  summaryBackdrop.classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+async function openSummaryModal() {
+  summaryBodyEl.innerHTML = `
+    <div class="summary-loading">
+      <div class="modal-spinner"></div>
+      <span>Fetching batch statistics…</span>
+    </div>`;
+  summaryBackdrop.classList.add('visible');
+  document.body.style.overflow = 'hidden';
+
+  const predictedFiles = allFiles().filter(f => f.prediction !== null);
+  if (!predictedFiles.length) {
+    summaryBodyEl.innerHTML = `<div class="summary-loading"><span>No predictions yet. Run the model first.</span></div>`;
+    return;
+  }
+
+  const fd = new FormData();
+  predictedFiles.forEach(fe => fd.append('files', fe.file));
+
+  try {
+    const res = await fetch('/predict/summary', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderSummaryModal(data);
+  } catch(err) {
+    summaryBodyEl.innerHTML = `<div class="summary-loading" style="color:var(--danger)"><span>Failed: ${escHtml(err.message)}</span></div>`;
+  }
+}
+
+function renderSummaryModal(data) {
+  /*
+    Expected shape from /predict/summary (via batch_summary helper):
+    {
+      num_images, class_distribution, mean_probabilities,
+      std_probabilities, max_probabilities, dominant_class,
+      mean_confidence, confidence_hist, per_image
+    }
+  */
+  const numImages       = data.num_images       || 0;
+  const dominantClass   = data.dominant_class   || '—';
+  const meanConf        = data.mean_confidence  != null ? (data.mean_confidence * 100).toFixed(1) + '%' : '—';
+  const classDist       = data.class_distribution || {};
+  const meanProbs       = data.mean_probabilities  || {};
+  const stdProbs        = data.std_probabilities   || {};
+  const maxProbs        = data.max_probabilities   || {};
+  const confHist        = data.confidence_hist;   // array of bin counts or {bins, counts}
+
+  const r = riskOf(dominantClass);
+  const dominantClasses = Object.keys(classDist);
+
+  // KPIs
+  const kpiHtml = `
+    <div class="summary-kpis">
+      <div class="summary-kpi">
+        <div class="summary-kpi-value">${numImages}</div>
+        <div class="summary-kpi-label">Images analysed</div>
+      </div>
+      <div class="summary-kpi">
+        <div class="summary-kpi-value" style="color:${riskBarColor(dominantClass)}">${escHtml(dominantClass.replace('Demented',''))}</div>
+        <div class="summary-kpi-label">Dominant class</div>
+      </div>
+      <div class="summary-kpi">
+        <div class="summary-kpi-value">${meanConf}</div>
+        <div class="summary-kpi-label">Mean confidence</div>
+      </div>
+      <div class="summary-kpi">
+        <div class="summary-kpi-value">${dominantClasses.length}</div>
+        <div class="summary-kpi-label">Classes detected</div>
+      </div>
+    </div>`;
+
+  // Donut chart (SVG)
+  const donutHtml = buildDonutHtml(classDist);
+
+  // Confidence histogram
+  const histHtml = buildHistogramHtml(confHist, data.per_image);
+
+  // Mean / Std / Max comparison table
+  const probTableHtml = buildProbTableHtml(meanProbs, stdProbs, maxProbs);
+
+  summaryBodyEl.innerHTML = `
+    ${kpiHtml}
+    <div class="summary-charts">
+      <div class="summary-card">
+        <div class="summary-card-label">Class distribution</div>
+        <div class="summary-card-body">${donutHtml}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">Confidence histogram</div>
+        <div class="summary-card-body">${histHtml}</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-card-label">Probability statistics — mean · std · max per class</div>
+      <div class="summary-card-body">${probTableHtml}</div>
+    </div>`;
+}
+
+/* Donut chart SVG */
+function buildDonutHtml(dist) {
+  const entries  = Object.entries(dist).filter(([,v]) => v > 0);
+  const total    = entries.reduce((s,[,v]) => s + v, 0) || 1;
+  const SIZE     = 100;
+  const CX = 50, CY = 50, R = 36, STROKE = 14;
+  const circ     = 2 * Math.PI * R;
+  let offset     = 0;
+
+  const arcs = entries.map(([cls, count]) => {
+    const frac  = count / total;
+    const dash  = frac * circ;
+    const gap   = circ - dash;
+    const color = riskBarColorRaw(cls);
+    const arc   = `<circle cx="${CX}" cy="${CY}" r="${R}"
+      fill="none" stroke="${color}" stroke-width="${STROKE}"
+      stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}"
+      stroke-dashoffset="${(-offset * circ).toFixed(2)}"
+      stroke-linecap="butt"
+      style="transition: stroke-dasharray 0.6s cubic-bezier(0.16,1,0.3,1)"
+    />`;
+    offset += frac;
+    return arc;
+  });
+
+  const svgHtml = `
+    <svg class="donut-svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
+      <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="var(--border)" stroke-width="${STROKE}"/>
+      ${arcs.join('')}
+      <text x="${CX}" y="${CY - 4}" text-anchor="middle" font-size="14" fill="var(--text)" font-family="'Instrument Serif',serif">${total}</text>
+      <text x="${CX}" y="${CY + 10}" text-anchor="middle" font-size="6" fill="var(--text-3)" font-family="'DM Mono',monospace" letter-spacing="0.05em">IMAGES</text>
+    </svg>`;
+
+  const legendRows = entries.map(([cls, count]) => {
+    const pct = ((count/total)*100).toFixed(0);
+    return `<div class="donut-legend-row">
+      <div class="donut-legend-dot" style="background:${riskBarColorRaw(cls)}"></div>
+      <span class="donut-legend-label">${escHtml(cls)}</span>
+      <span class="donut-legend-val">${count} (${pct}%)</span>
+    </div>`;
+  }).join('');
+
+  return `<div class="donut-wrap">${svgHtml}<div class="donut-legend">${legendRows}</div></div>`;
+}
+
+/* Confidence histogram */
+function buildHistogramHtml(confHist, perImage) {
+  // Build bins from per_image if confHist isn't provided or is empty
+  let bins, counts;
+  if (confHist && Array.isArray(confHist) && confHist.length > 0) {
+    if (typeof confHist[0] === 'object' && confHist[0].count != null) {
+      bins   = confHist.map(b => b.bin_start || b.min || 0);
+      counts = confHist.map(b => b.count);
+    } else {
+      counts = confHist;
+      bins   = counts.map((_, i) => i / counts.length);
+    }
+  } else if (perImage && perImage.length) {
+    // Build our own 10-bin histogram
+    const NUM_BINS = 10;
+    counts = new Array(NUM_BINS).fill(0);
+    bins   = Array.from({length: NUM_BINS}, (_, i) => i / NUM_BINS);
+    perImage.forEach(item => {
+      const c = item.confidence || 0;
+      const idx = Math.min(Math.floor(c * NUM_BINS), NUM_BINS - 1);
+      counts[idx]++;
+    });
+  } else {
+    return '<div style="color:var(--text-3);font-size:11px;padding:8px 0">No data available</div>';
+  }
+
+  const maxCount = Math.max(...counts, 1);
+
+  const barColsHtml = counts.map((c, i) => {
+    const pct   = (c / maxCount) * 100;
+    const label = `${Math.round(bins[i]*100)}–${Math.round((bins[i]+(1/counts.length))*100)}%`;
+    // Color bars by confidence zone
+    const col   = c === 0 ? 'var(--border2)' : confBinColor(bins[i]);
+    return `<div class="hist-bar-col">
+      <div class="hist-bar" style="height:${Math.max(pct,2)}%;background:${col}" title="${c} images · ${label}"></div>
+    </div>`;
+  }).join('');
+
+  const firstLabel = `${Math.round(bins[0]*100)}%`;
+  const lastLabel  = '100%';
+
+  return `
+    <div class="histogram-wrap">
+      <div class="histogram-bars">${barColsHtml}</div>
+      <div class="histogram-axis"><span>${firstLabel}</span><span>Confidence</span><span>${lastLabel}</span></div>
+    </div>`;
+}
+
+function confBinColor(binStart) {
+  if (binStart >= 0.8) return 'var(--risk-safe-fg)';
+  if (binStart >= 0.6) return 'var(--risk-low-fg)';
+  if (binStart >= 0.4) return 'var(--risk-mid-fg)';
+  return 'var(--risk-high-fg)';
+}
+
+/* Prob table */
+function buildProbTableHtml(meanProbs, stdProbs, maxProbs) {
+  const classes = Object.keys(meanProbs);
+  if (!classes.length) return '<div style="color:var(--text-3);font-size:11px">No data</div>';
+
+  const headerRow = `<div class="prob-compare-row prob-compare-header">
+    <div></div>
+    <div style="text-align:right">Mean</div>
+    <div style="text-align:right">Std</div>
+    <div style="text-align:right">Max</div>
+  </div>`;
+
+  const maxMean = Math.max(...classes.map(c => meanProbs[c]||0));
+
+  const rows = classes
+    .sort((a,b) => (meanProbs[b]||0) - (meanProbs[a]||0))
+    .map(cls => {
+      const mean = meanProbs[cls] != null ? (meanProbs[cls]*100).toFixed(1)+'%' : '—';
+      const std  = stdProbs[cls]  != null ? (stdProbs[cls]*100).toFixed(1)+'%'  : '—';
+      const max  = maxProbs[cls]  != null ? (maxProbs[cls]*100).toFixed(1)+'%'  : '—';
+      const isTop = (meanProbs[cls]||0) === maxMean;
+      return `<div class="prob-compare-row">
+        <div>${riskChip(cls)}</div>
+        <div class="prob-val ${isTop?'is-max':''}" style="text-align:right">${mean}</div>
+        <div class="prob-val" style="text-align:right">${std}</div>
+        <div class="prob-val" style="text-align:right">${max}</div>
+      </div>`;
+    }).join('');
+
+  return `<div class="prob-compare">${headerRow}${rows}</div>`;
+}
+
+/* ═══════════════════════════════════════════════
+   CONFIDENCE SCATTER PLOT (canvas)
+═══════════════════════════════════════════════ */
+function rebuildScatter() {
+  const predicted = allFiles().filter(f => f.prediction);
+  if (!predicted.length) {
+    scatterSection.classList.remove('visible');
+    scatterPoints = [];
+    return;
+  }
+
+  scatterPoints = predicted.map((fe, i) => ({
+    x: i,
+    y: fe.prediction.confidence,
+    cls: fe.prediction.class,
+    name: fe.name,
+    id: fe.id,
+  }));
+
+  scatterSection.classList.add('visible');
+  renderLegend();
+  renderScatter();
+}
+
+function renderLegend() {
+  const classes = [...new Set(scatterPoints.map(p => p.cls))];
+  scatterLegend.innerHTML = classes.map(cls => `
+    <div class="scatter-legend-item">
+      <div class="scatter-legend-dot" style="background:${riskBarColorRaw(cls)}"></div>
+      ${escHtml(cls)}
+    </div>`).join('');
+}
+
+function renderScatter() {
+  const dpr    = window.devicePixelRatio || 1;
+  const wrap   = scatterWrap;
+  const W      = wrap.clientWidth - 40;   // 20px padding each side
+  const H      = 160;
+
+  scatterCanvas.width  = W * dpr;
+  scatterCanvas.height = H * dpr;
+  scatterCanvas.style.width  = W + 'px';
+  scatterCanvas.style.height = H + 'px';
+
+  const ctx = scatterCanvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const isDark    = document.documentElement.getAttribute('data-theme') === 'dark';
+  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+  const textColor = isDark ? '#606060' : '#b0a090';
+
+  const PAD_L = 36, PAD_R = 8, PAD_T = 8, PAD_B = 22;
+  const plotW  = W - PAD_L - PAD_R;
+  const plotH  = H - PAD_T - PAD_B;
+  const n      = scatterPoints.length;
+
+  // Y axis grid lines at 0.25, 0.5, 0.75, 1.0
+  ctx.font      = `9px 'DM Mono', monospace`;
+  ctx.fillStyle = textColor;
+  ctx.textAlign = 'right';
+  [0.25, 0.5, 0.75, 1.0].forEach(v => {
+    const y = PAD_T + plotH - v * plotH;
+    ctx.strokeStyle = gridColor;
+    ctx.setLineDash([3, 4]);
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD_L, y);
+    ctx.lineTo(PAD_L + plotW, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillText((v*100).toFixed(0)+'%', PAD_L - 4, y + 3);
+  });
+
+  // X axis label
+  ctx.textAlign   = 'center';
+  ctx.fillStyle   = textColor;
+  ctx.font        = `9px 'DM Mono', monospace`;
+  ctx.fillText('Image index', PAD_L + plotW/2, H - 4);
+
+  // Points
+  scatterPoints.forEach((pt, i) => {
+    const x = PAD_L + (n === 1 ? plotW/2 : (i / (n-1)) * plotW);
+    const y = PAD_T + plotH - pt.y * plotH;
+    const color = riskBarColorRaw(pt.cls);
+
+    // Vertical drop line
+    ctx.strokeStyle = color + '33';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, PAD_T + plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Dot
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI*2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = isDark ? '#0f0f0f' : '#f5f2ed';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Store px coords for hover
+    pt._px = x; pt._py = y;
+  });
+}
+
+// Hover tooltip on scatter
+scatterCanvas.addEventListener('mousemove', e => {
+  const rect  = scatterCanvas.getBoundingClientRect();
+  const mx    = e.clientX - rect.left;
+  const my    = e.clientY - rect.top;
+  const HIT   = 12;
+
+  let hit = null;
+  for (const pt of scatterPoints) {
+    if (pt._px == null) continue;
+    const dx = mx - pt._px, dy = my - pt._py;
+    if (Math.sqrt(dx*dx + dy*dy) < HIT) { hit = pt; break; }
+  }
+
+  if (hit) {
+    const wrapRect = scatterWrap.getBoundingClientRect();
+    const tx = (hit._px + 12);
+    const ty = (hit._py - 8);
+    scatterTooltip.style.left = tx + 'px';
+    scatterTooltip.style.top  = ty + 'px';
+    scatterTooltip.innerHTML  = `<strong>${escHtml(hit.name)}</strong>${escHtml(hit.cls)} · ${(hit.y*100).toFixed(1)}%`;
+    scatterTooltip.classList.add('visible');
+  } else {
+    scatterTooltip.classList.remove('visible');
+  }
+});
+scatterCanvas.addEventListener('mouseleave', () => scatterTooltip.classList.remove('visible'));
+
+// Click scatter dot → open explain modal
+scatterCanvas.addEventListener('click', e => {
+  const rect = scatterCanvas.getBoundingClientRect();
+  const mx   = e.clientX - rect.left;
+  const my   = e.clientY - rect.top;
+  const HIT  = 12;
+  for (const pt of scatterPoints) {
+    if (pt._px == null) continue;
+    const dx = mx - pt._px, dy = my - pt._py;
+    if (Math.sqrt(dx*dx + dy*dy) < HIT) {
+      const fe = fileById(pt.id);
+      if (fe) openExplainModal(fe);
+      return;
+    }
+  }
+});
+
+window.addEventListener('resize', () => { if (scatterPoints.length) renderScatter(); });
 
 /* ═══════════════════════════════════════════════
    RENDER RESULTS
 ═══════════════════════════════════════════════ */
 function renderResults(data, mode, files) {
   resultsSection.className = 'results-section visible';
-  resultsBody.innerHTML = '';
+  resultsBody.innerHTML    = '';
+  summaryBtn.style.display = '';
 
   if (mode === 'per_image') {
     resultsClass.textContent = 'Per-image results';
@@ -1631,7 +2291,7 @@ function renderResults(data, mode, files) {
   const probs = mode === 'max_probability' ? data.max_probabilities : data.mean_probabilities;
   const label = mode === 'max_probability' ? 'max probability' : 'mean probability';
 
-  resultsClass.innerHTML = escHtml(data.predicted_class) + ' ' + riskChip(data.predicted_class, false);
+  resultsClass.innerHTML  = escHtml(data.predicted_class) + ' ' + riskChip(data.predicted_class, false);
   resultsMeta.textContent = `${data.num_images} image${data.num_images!==1?'s':''} · ${label}`;
 
   renderAggregate(probs);
@@ -1670,9 +2330,7 @@ function renderPerImage(items, fileEntries = []) {
   wrap.className = 'result-rows';
 
   items.forEach((item, i) => {
-    // Match to fileEntry so we can wire up the explain button
     const fe = fileEntries.find(f => f.name === item.filename) || null;
-
     const row = document.createElement('div');
     row.className = 'result-row';
     row.style.animationDelay = `${i * 40}ms`;
@@ -1694,7 +2352,6 @@ function renderPerImage(items, fileEntries = []) {
 
   resultsBody.appendChild(wrap);
 
-  // Explain button click handler in results area
   wrap.addEventListener('click', async e => {
     const btn = e.target.closest('[data-result-explain]');
     if (!btn) return;
@@ -1705,7 +2362,6 @@ function renderPerImage(items, fileEntries = []) {
     btn.classList.add('loading');
     btn.textContent = 'Loading…';
     await openExplainModal(fe);
-    // Update button label after modal fetch completes
     btn.classList.remove('loading');
     btn.classList.toggle('has-cam', !!fe.explanation);
     btn.innerHTML = `<span class="explain-dot"></span>${fe.explanation ? 'Explained' : 'Explain'}`;
@@ -1727,7 +2383,7 @@ const RISK_MAP = {
   'MildDemented':     { level: 'mid',  label: 'Mild'      },
   'ModerateDemented': { level: 'high', label: 'Moderate'  },
 };
-function riskOf(className)        { return RISK_MAP[className] || { level: 'low', label: className }; }
+function riskOf(className) { return RISK_MAP[className] || { level: 'low', label: className }; }
 function riskChip(cls, showName=true) {
   const r = riskOf(cls);
   const t = showName ? escHtml(cls) : escHtml(r.label);
@@ -1736,6 +2392,17 @@ function riskChip(cls, showName=true) {
 function riskBarColor(cls) {
   const vars = { safe:'var(--risk-safe-fg)', low:'var(--risk-low-fg)', mid:'var(--risk-mid-fg)', high:'var(--risk-high-fg)' };
   return vars[riskOf(cls).level] || 'var(--text)';
+}
+// Returns a literal CSS color string (not a var()) for canvas usage
+function riskBarColorRaw(cls) {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const colors = {
+    safe: isDark ? '#4caf7d' : '#2e7d52',
+    low:  isDark ? '#c9a84c' : '#9a7020',
+    mid:  isDark ? '#c97c3a' : '#9a4e18',
+    high: isDark ? '#c0392b' : '#8b2615',
+  };
+  return colors[riskOf(cls).level] || (isDark ? '#a0a0a0' : '#7a6a5a');
 }
 </script>
 </body>

@@ -5,7 +5,6 @@ class SAM(torch.optim.Optimizer):
     Sharpness-Aware Minimization optimizer.
     
     Research: "Sharpness-Aware Minimization for Efficiently Improving Generalization" (ICLR 2021)
-    Expected: +3-5% accuracy, better generalization
     """
     def __init__(self, params, base_optimizer, rho=0.05, **kwargs):
         defaults = dict(rho=rho, **kwargs)

@@ -11,35 +11,20 @@ from PIL import Image
 from torchvision import transforms
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import spaces
 from huggingface_hub import snapshot_download
 
 from package.explainability import explain_image
-
-ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT))
-
-
-# ─── Config ──────────────────────────────────────────────────────────────────
-MODEL_NAME          = "swin_base_patch4_window7_224.ms_in22k_ft_in1k"
-CLASSIFIER_TYPE     = "progressive"
-SAVE_DIR            = ROOT / "saved_models"
-WEIGHTS_PATH        = SAVE_DIR / f"swin_{CLASSIFIER_TYPE}_best.pth"
-BEST_FOLD_PATH      = SAVE_DIR / f"swin_{CLASSIFIER_TYPE}_best_fold.pth"
-CLASS_NAMES_PATH    = SAVE_DIR / "swin_class_names.txt"
-CLASS_WEIGHTS_PATH  = SAVE_DIR / "class_weights.npy"
-DEVICE              = "cuda" if torch.cuda.is_available() else "cpu"
-IMG_SIZE            = 224
-
-# ── Explainability method ─────────────────────────────────────────────────────
-# Swap this string to change the visual explanation strategy globally.
-# Options: eigengradcam | gradcampp | gradcam | scorecam | rise | attention
-EXPLAIN_METHOD: str = "eigengradcam"
+from package.visualization import cam_statistics, batch_summary
+from package.config import (
+    MODEL_NAME, ROOT, SAVE_DIR, WEIGHTS_PATH,
+    CLASS_NAMES_PATH, CLASS_WEIGHTS_PATH,
+    IMG_SIZE, DEVICE
+)
 
 
-# ─── Load model once at startup ──────────────────────────────────────────────
+# ─── Startup ─────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     load_model()
@@ -56,7 +41,6 @@ _class_weights_tensor = None
 def load_model():
     global _model, _class_names, _transform, _class_weights_tensor
 
-    # Download weights from HF Hub if not present locally
     if not WEIGHTS_PATH.exists():
         print("[INFO] Downloading weights from Hugging Face Hub...")
         SAVE_DIR.mkdir(parents=True, exist_ok=True)
@@ -83,7 +67,7 @@ def load_model():
 
     model = timm.create_model(model_name=MODEL_NAME, pretrained=False, num_classes=len(_class_names))
 
-    checkpoint = WEIGHTS_PATH if WEIGHTS_PATH.exists() else BEST_FOLD_PATH
+    checkpoint = WEIGHTS_PATH
     model.load_state_dict(torch.load(checkpoint, map_location="cpu", weights_only=True))
     _model = model.eval().to(DEVICE)
 
@@ -94,16 +78,12 @@ def load_model():
     ])
 
     print(f"[INFO] Model loaded from {checkpoint.name}  |  classes={_class_names}  |  device={DEVICE}")
-    print(f"[INFO] Explainability method: {EXPLAIN_METHOD}")
 
 
-# ─── Inference helpers ───────────────────────────────────────────────────────
-def _get_predictions(logits: torch.Tensor, class_weights_tensor=None) -> np.ndarray:
-    if class_weights_tensor is not None:
-        log_weights = torch.log(class_weights_tensor + 1e-10)
-        logits = logits + log_weights.view(1, -1)
-    probs = F.softmax(logits, dim=1)
-    return probs.cpu().numpy()
+def _get_predictions(logits: torch.Tensor) -> np.ndarray:
+    log_weights = torch.log(_class_weights_tensor + 1e-10)
+    logits      = logits + log_weights.view(1, -1)
+    return F.softmax(logits, dim=1).cpu().numpy()
 
 
 @spaces.GPU
@@ -112,7 +92,7 @@ def _predict_tensor(img_tensor: torch.Tensor) -> np.ndarray:
         logits = _model(img_tensor.to(DEVICE))
         if isinstance(logits, tuple):
             logits = logits[0]
-    return _get_predictions(logits, _class_weights_tensor)
+    return _get_predictions(logits)
 
 
 def _pil_to_tensor(pil_img: Image.Image) -> torch.Tensor:
@@ -120,8 +100,7 @@ def _pil_to_tensor(pil_img: Image.Image) -> torch.Tensor:
 
 
 def _predict_image(pil_img: Image.Image) -> dict:
-    tensor = _pil_to_tensor(pil_img)
-    probs  = _predict_tensor(tensor)[0]
+    probs    = _predict_tensor(_pil_to_tensor(pil_img))[0]
     pred_idx = int(np.argmax(probs))
     return {
         "predicted_class": _class_names[pred_idx],
@@ -164,8 +143,39 @@ def _aggregate_mean_prob(results: List[dict]) -> dict:
     }
 
 
-# ─── Routes ──────────────────────────────────────────────────────────────────
+def _read_images_from_uploads(files: List[UploadFile]) -> List[tuple[Image.Image, str]]:
+    """Yield (PIL image, filename) pairs from a list of uploads, expanding ZIPs."""
+    out = []
+    for uf in files:
+        raw = uf.read() if not hasattr(uf, '_body') else uf._body  # sync fallback
+        raise RuntimeError("Use the async version below")
+    return out
 
+
+async def _collect_images(files: List[UploadFile]) -> List[tuple]:
+    """Async: return list of (pil_image, filename) from uploads + ZIPs."""
+    pairs = []
+    for uf in files:
+        raw = await uf.read()
+        if uf.filename and uf.filename.endswith(".zip"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                    for name in z.namelist():
+                        if name.lower().endswith((".png", ".jpg", ".jpeg", ".tiff")):
+                            pil = Image.open(io.BytesIO(z.read(name))).convert("RGB")
+                            pairs.append((pil, name))
+            except Exception as exc:
+                raise HTTPException(400, f"Cannot open ZIP '{uf.filename}': {exc}")
+        else:
+            try:
+                pil = Image.open(io.BytesIO(raw)).convert("RGB")
+                pairs.append((pil, uf.filename or "unknown"))
+            except Exception:
+                raise HTTPException(400, f"Cannot open file: {uf.filename}")
+    return pairs
+
+
+# Routes
 @app.get("/health")
 def health():
     return {"status": "ok", "model_loaded": _model is not None, "device": DEVICE}
@@ -182,36 +192,17 @@ async def predict(
     mode: str = Form("avg_probability"),
 ):
     if _model is None:
-        raise HTTPException(503, "Model not loaded. Run train_swin.py first.")
+        raise HTTPException(503, "Model not loaded.")
+
+    pairs = await _collect_images(files)
+    if not pairs:
+        raise HTTPException(400, "No valid images were found in the uploaded files.")
 
     results = []
-    for uf in files:
-        raw = await uf.read()
-
-        if uf.filename and uf.filename.endswith(".zip"):
-            try:
-                with zipfile.ZipFile(io.BytesIO(raw)) as z:
-                    for name in z.namelist():
-                        if name.lower().endswith((".png", ".jpg", ".jpeg", ".tiff")):
-                            pil = Image.open(io.BytesIO(z.read(name))).convert("RGB")
-                            res = _predict_image(pil)
-                            res["filename"] = name
-                            results.append(res)
-            except Exception as exc:
-                raise HTTPException(400, f"Cannot open ZIP '{uf.filename}': {exc}")
-            continue
-
-        try:
-            pil = Image.open(io.BytesIO(raw)).convert("RGB")
-        except Exception:
-            raise HTTPException(400, f"Cannot open file: {uf.filename}")
-
+    for pil, fname in pairs:
         res = _predict_image(pil)
-        res["filename"] = uf.filename
+        res["filename"] = fname
         results.append(res)
-
-    if not results:
-        raise HTTPException(400, "No valid images were found in the uploaded files.")
 
     if mode == "per_image":
         return JSONResponse({"mode": "per_image", "results": results})
@@ -224,22 +215,34 @@ async def predict(
     return JSONResponse(agg)
 
 
-@app.post("/explain")
-async def explain(
-    file: UploadFile = File(...),
-):
+@app.post("/predict/summary")
+async def predict_summary(files: List[UploadFile] = File(...)):
     """
-    Run the configured visual + text explanation on a single image.
+    Run prediction on all images and return batch-level statistics:
+    class distribution, mean/std/max probabilities, confidence histogram.
+    """
+    if _model is None:
+        raise HTTPException(503, "Model not loaded.")
 
-    Returns
-    -------
-    {
-        filename, predicted_class, confidence, probabilities,
-        original_b64, overlay_b64,
-        text,        ← natural-language interpretation
-        region,      ← rough anatomical region
-        method,      ← which visual method was used
-    }
+    pairs = await _collect_images(files)
+    if not pairs:
+        raise HTTPException(400, "No valid images were found.")
+
+    results = []
+    for pil, fname in pairs:
+        res = _predict_image(pil)
+        res["filename"] = fname
+        results.append(res)
+
+    summary = batch_summary(results)
+    summary["per_image"] = results
+    return JSONResponse(summary)
+
+
+@app.post("/explain")
+async def explain(file: UploadFile = File(...)):
+    """
+    Run GradCAM + natural-language explanation on a single image.
     """
     if _model is None:
         raise HTTPException(503, "Model not loaded.")
@@ -250,10 +253,7 @@ async def explain(
     except Exception:
         raise HTTPException(400, f"Cannot open file: {file.filename}")
 
-    # Prediction
     pred = _predict_image(pil)
-
-    # Visual + text explanation via explainability module
     expl = explain_image(
         pil_img         = pil,
         model           = _model,
@@ -261,9 +261,10 @@ async def explain(
         class_names     = _class_names,
         predicted_class = pred["predicted_class"],
         confidence      = pred["confidence"],
-        method          = EXPLAIN_METHOD,
         device          = DEVICE,
     )
+
+    stats = cam_statistics(expl["grayscale_cam"])
 
     return JSONResponse({
         "filename":        file.filename,
@@ -274,11 +275,46 @@ async def explain(
         "overlay_b64":     expl["overlay_b64"],
         "text":            expl["text"],
         "region":          expl["region"],
-        "method":          expl["method"],
+        "cam_stats":       stats,
     })
 
 
-# ─── Serve the single-page UI ─────────────────────────────────────────────────
+@app.post("/explain/stats")
+async def explain_stats(file: UploadFile = File(...)):
+    """
+    Return GradCAM spatial statistics without the overlay images —
+    useful for lightweight analytics dashboards scanning many files.
+    """
+    if _model is None:
+        raise HTTPException(503, "Model not loaded.")
+
+    raw = await file.read()
+    try:
+        pil = Image.open(io.BytesIO(raw)).convert("RGB")
+    except Exception:
+        raise HTTPException(400, f"Cannot open file: {file.filename}")
+
+    pred = _predict_image(pil)
+    expl = explain_image(
+        pil_img         = pil,
+        model           = _model,
+        transform       = _transform,
+        class_names     = _class_names,
+        predicted_class = pred["predicted_class"],
+        confidence      = pred["confidence"],
+        device          = DEVICE,
+    )
+    stats = cam_statistics(expl["grayscale_cam"])
+
+    return JSONResponse({
+        "filename":        file.filename,
+        "predicted_class": pred["predicted_class"],
+        "confidence":      pred["confidence"],
+        "probabilities":   pred["probabilities"],
+        "region":          expl["region"],
+        "cam_stats":       stats,
+    })
+
 
 @app.get("/", response_class=HTMLResponse)
 def ui():

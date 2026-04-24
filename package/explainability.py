@@ -1,58 +1,134 @@
-"""
-package/explainability.py
-─────────────────────────
-Unified explainability entry point for the Alzheimer MRI classifier.
-
-Public API
-----------
-    explain_image(pil_img, model, class_names, predicted_class, confidence,
-                  method='eigengradcam')
-    → dict with keys: original_b64, overlay_b64, text, region, method
-
-Supported methods (swap via the METHOD constant in main.py):
-    eigengradcam  – EigenGradCAM   (default, recommended for Swin)
-    gradcampp     – GradCAM++
-    gradcam       – vanilla GradCAM
-    scorecam      – ScoreCAM       (slow, no-gradient)
-    rise          – RISE            (slowest, model-agnostic)
-    attention     – Attention Rollout (Swin-native)
-"""
-
 from __future__ import annotations
 
 import io
 import base64
-import math
 from typing import Optional
 
+import cv2
 import numpy as np
 from PIL import Image
 import torch
 import torch.nn.functional as F
+from package.config import IMG_SIZE
 
-# pytorch-grad-cam
-from pytorch_grad_cam import (
-    EigenGradCAM,
-    GradCAMPlusPlus,
-    GradCAM,
-    ScoreCAM,
-)
-from pytorch_grad_cam.utils.image import show_cam_on_image
-
-# ─── Constants ────────────────────────────────────────────────────────────────
-IMG_SIZE = 224
-
-# Confidence tiers
-_TIER_HIGH   = 0.80
-_TIER_MEDIUM = 0.55
-
-# RISE defaults (kept low for interactive speed)
-_RISE_MASKS  = 500
-_RISE_MASK_S = 8      # mask grid size
-_RISE_P1     = 0.5    # probability of a mask cell being 1
+_TIER_HIGH    = 0.80
+_TIER_MEDIUM  = 0.55
+_GRADCAM_ALPHA = 0.4   # heatmap blend strength in overlay
 
 
-# ─── Public entry point ───────────────────────────────────────────────────────
+def _reshape_transform_swin(tensor, height: int = 7, width: int = 7) -> torch.Tensor:
+    """
+    Reshape Swin's (B, N, C) token tensor → (B, C, H, W) for spatial pooling.
+    Mirrors reshape_transform_swin from the reference exactly.
+    """
+    result = tensor.reshape(tensor.size(0), height, width, tensor.size(2))
+    result = result.permute(0, 3, 1, 2)
+    return result
+
+
+class NativeGradCAM:
+    """
+    Hook-based GradCAM — no pytorch-grad-cam dependency.
+      - forward hook  → saves activations
+      - backward hook → saves gradients
+      - reshape_transform applied to both before pooling
+      - weights = mean(grads, dim=(2,3)), cam = sum(weights * fmaps, dim=1)
+      - ReLU + min-max normalisation
+      - remove_hooks() called in a finally block by the caller
+    """
+
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        target_layer: torch.nn.Module,
+        reshape_transform=None,
+    ):
+        self.model             = model.eval()
+        self.reshape_transform = reshape_transform
+        self.activations: Optional[torch.Tensor] = None
+        self.gradients:   Optional[torch.Tensor] = None
+        self.hooks = []
+
+        self.hooks.append(
+            target_layer.register_forward_hook(self._save_activation)
+        )
+        self.hooks.append(
+            target_layer.register_full_backward_hook(self._save_gradient)
+        )
+
+    def _save_activation(self, module, inp, output):
+        self.activations = (
+            output.clone() if isinstance(output, torch.Tensor) else output
+        )
+
+    def _save_gradient(self, module, grad_input, grad_output):
+        self.gradients = (
+            grad_output[0].clone()
+            if isinstance(grad_output[0], torch.Tensor)
+            else grad_output[0]
+        )
+
+    def __call__(self, input_tensor: torch.Tensor) -> np.ndarray:
+        """Forward + backward pass → (H, W) GradCAM heatmap in [0, 1]."""
+        self.model.zero_grad()
+        self.model.eval()
+
+        with torch.enable_grad():
+            inp    = input_tensor.clone().detach().requires_grad_(True)
+            output = self.model(inp)
+            pred_index = output.argmax(dim=1)
+            score  = output[:, pred_index]
+            score.backward()
+
+        grads = self.gradients
+        fmaps = self.activations
+
+        if self.reshape_transform is not None:
+            grads = self.reshape_transform(grads)
+            fmaps = self.reshape_transform(fmaps)
+
+        weights = torch.mean(grads, dim=(2, 3), keepdim=True)
+        cam     = torch.sum(weights * fmaps, dim=1, keepdim=True)
+        cam     = F.relu(cam)
+        cam     = cam - cam.min()
+        cam     = cam / (cam.max() + 1e-7)
+
+        return cam.detach().cpu().numpy()[0, 0]   # (H, W) float32 in [0, 1]
+
+    def remove_hooks(self):
+        for h in self.hooks:
+            h.remove()
+
+
+def _swin_target_layer(model: torch.nn.Module) -> torch.nn.Module:
+    """Last norm layer in Swin's final stage — matches the reference heuristic."""
+    return model.layers[-1].blocks[-1].norm2
+
+
+def _gradcam_overlay(
+    heatmap: np.ndarray,
+    original_img_np: np.ndarray,
+    alpha: float = _GRADCAM_ALPHA,
+) -> np.ndarray:
+    """
+    Resize heatmap, apply COLORMAP_JET, blend with addWeighted.
+    Mirrors generate_gradcam_plot from the reference exactly.
+    """
+    h, w = original_img_np.shape[:2]
+
+    heatmap_resized = cv2.resize(heatmap, (w, h))
+    heatmap_uint8   = np.uint8(255 * heatmap_resized)
+    heatmap_colored = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
+    heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
+
+    img = original_img_np
+    if img.max() <= 1.0:
+        img = np.uint8(255 * img)
+    else:
+        img = np.uint8(img)
+
+    return cv2.addWeighted(img, 1, heatmap_colored, alpha, 0)
+
 
 def explain_image(
     pil_img: Image.Image,
@@ -61,359 +137,45 @@ def explain_image(
     class_names: list[str],
     predicted_class: str,
     confidence: float,
-    method: str = "eigengradcam",
     device: str = "cpu",
 ) -> dict:
-    """
-    Run visual explanation + text explanation on a single PIL image.
-
-    Returns
-    -------
-    {
-        "original_b64":  str,   # base64 PNG of the 224×224 original
-        "overlay_b64":   str,   # base64 PNG of heatmap overlay (original size)
-        "text":          str,   # natural-language interpretation
-        "region":        str,   # rough anatomical region label
-        "method":        str,   # which visual method was used
-    }
-    """
+    """Run GradCAM + text explanation on a single PIL image."""
     orig_w, orig_h = pil_img.size
-    img_rgb = pil_img.convert("RGB")
-    img_resized = img_rgb.resize((IMG_SIZE, IMG_SIZE))
+    img_resized    = pil_img.convert("RGB").resize((IMG_SIZE, IMG_SIZE))
+    original_np    = np.array(img_resized)           # uint8 (H, W, 3)
+    input_tensor   = transform(img_resized).unsqueeze(0).to(device)
 
-    # Float [0,1] array for overlay rendering
-    rgb_float = np.array(img_resized, dtype=np.float32) / 255.0
+    # ── GradCAM ───────────────────────────────────────────────────────────────
+    cam_engine = NativeGradCAM(
+        model             = model,
+        target_layer      = _swin_target_layer(model),
+        reshape_transform = _reshape_transform_swin,
+    )
+    try:
+        grayscale_cam = cam_engine(input_tensor)
+    finally:
+        cam_engine.remove_hooks()
 
-    # Input tensor
-    input_tensor = transform(img_resized).unsqueeze(0).to(device)
+    # ── Overlay ───────────────────────────────────────────────────────────────
+    overlay_np  = _gradcam_overlay(grayscale_cam, original_np)
+    overlay_pil = Image.fromarray(overlay_np).resize((orig_w, orig_h), Image.LANCZOS)
 
-    # ── Visual explanation ────────────────────────────────────────────────────
-    grayscale_cam = _dispatch_visual(
-        method=method,
-        model=model,
-        input_tensor=input_tensor,
-        img_resized=img_resized,
-        rgb_float=rgb_float,
-        device=device,
-    )  # shape (H, W), values in [0, 1]
-
-    overlay = show_cam_on_image(rgb_float, grayscale_cam, use_rgb=True)  # uint8 (H,W,3)
-    overlay_pil = Image.fromarray(overlay).resize((orig_w, orig_h), Image.LANCZOS)
-
-    # ── Region estimation ─────────────────────────────────────────────────────
+    # ── Region + text ─────────────────────────────────────────────────────────
     region = _estimate_region(grayscale_cam)
+    text   = _generate_text(predicted_class, confidence, region)
 
-    # ── Text explanation ──────────────────────────────────────────────────────
-    text = _generate_text(predicted_class, confidence, region)
-
-    # ── Encode images ─────────────────────────────────────────────────────────
-    original_b64 = _pil_to_b64(img_resized)
-    overlay_b64  = _pil_to_b64(overlay_pil)
-
+    # ── Encode ────────────────────────────────────────────────────────────────
     return {
-        "original_b64": original_b64,
-        "overlay_b64":  overlay_b64,
-        "text":         text,
-        "region":       region,
-        "method":       method,
+        "original_b64":  _pil_to_b64(img_resized),
+        "overlay_b64":   _pil_to_b64(overlay_pil),
+        "text":          text,
+        "region":        region,
+        "grayscale_cam": grayscale_cam,
     }
 
-
-# ─── Visual method dispatcher ─────────────────────────────────────────────────
-
-def _dispatch_visual(
-    method: str,
-    model: torch.nn.Module,
-    input_tensor: torch.Tensor,
-    img_resized: Image.Image,
-    rgb_float: np.ndarray,
-    device: str,
-) -> np.ndarray:
-    """Return a (H, W) grayscale activation map in [0, 1]."""
-
-    method = method.lower().strip()
-
-    if method == "eigengradcam":
-        return _run_eigengradcam(model, input_tensor)
-    elif method == "gradcampp":
-        return _run_gradcam_pp(model, input_tensor)
-    elif method == "gradcam":
-        return _run_gradcam(model, input_tensor)
-    elif method == "scorecam":
-        return _run_scorecam(model, input_tensor)
-    elif method == "rise":
-        return _run_rise(model, input_tensor, device)
-    elif method == "attention":
-        return _run_attention_rollout(model, input_tensor, device)
-    else:
-        raise ValueError(
-            f"Unknown explainability method: '{method}'. "
-            "Choose from: eigengradcam, gradcampp, gradcam, scorecam, rise, attention"
-        )
-
-
-# ─── Target layer helper ─────────────────────────────────────────────────────
-
-def _swin_target_layer(model: torch.nn.Module) -> list:
-    """Return the target layer list for Swin's last stage."""
-    return [model.layers[-1].blocks[-1].norm2]
-
-
-# ─── Individual visual methods ────────────────────────────────────────────────
-
-def _run_eigengradcam(model, input_tensor) -> np.ndarray:
-    """
-    EigenGradCAM — projects activations onto the principal eigenvector.
-    Smooth, blob-shaped, minimal stripe artefacts on Swin. ~100 ms.
-    """
-    cam = EigenGradCAM(model=model, target_layers=_swin_target_layer(model))
-    result = cam(input_tensor=input_tensor)
-    return result[0]
-
-
-def _run_gradcam_pp(model, input_tensor) -> np.ndarray:
-    """
-    GradCAM++ — weights positive gradients more carefully than vanilla.
-    Handles multiple activations of the same class; slight stripe risk on Swin.
-    """
-    cam = GradCAMPlusPlus(model=model, target_layers=_swin_target_layer(model))
-    result = cam(input_tensor=input_tensor)
-    return result[0]
-
-
-def _run_gradcam(model, input_tensor) -> np.ndarray:
-    """
-    Vanilla GradCAM — baseline. Included for direct comparison.
-    Most artifact-prone on Swin due to patch-based activations.
-    """
-    cam = GradCAM(model=model, target_layers=_swin_target_layer(model))
-    result = cam(input_tensor=input_tensor)
-    return result[0]
-
-
-def _run_scorecam(model, input_tensor) -> np.ndarray:
-    """
-    ScoreCAM — perturbation-based, no gradients required.
-    Smoother than gradient methods; significantly slower (~2–5 s per image).
-    """
-    cam = ScoreCAM(model=model, target_layers=_swin_target_layer(model))
-    result = cam(input_tensor=input_tensor)
-    return result[0]
-
-
-def _run_rise(
-    model: torch.nn.Module,
-    input_tensor: torch.Tensor,
-    device: str,
-    n_masks: int = _RISE_MASKS,
-    mask_size: int = _RISE_MASK_S,
-    p1: float = _RISE_P1,
-) -> np.ndarray:
-    """
-    RISE — Random Input Sampling for Explanation.
-    Fully model-agnostic; generates random binary masks, measures score delta.
-    Slowest method (~5–15 s for 500 masks) but produces clean blob-shaped maps.
-
-    Parameters
-    ----------
-    n_masks   : number of random masks (lower = faster but noisier)
-    mask_size : coarse grid size (upsampled to IMG_SIZE)
-    p1        : probability of a mask cell being transparent (unmasked)
-    """
-    model.eval()
-    H = W = IMG_SIZE
-
-    # Upsample grid masks to image size
-    sal_map = np.zeros((H, W), dtype=np.float32)
-    count   = np.zeros((H, W), dtype=np.float32)
-
-    with torch.no_grad():
-        # Baseline prediction (unmasked)
-        logits_base = model(input_tensor)
-        if isinstance(logits_base, tuple):
-            logits_base = logits_base[0]
-        probs_base = F.softmax(logits_base, dim=1)
-        pred_idx   = int(probs_base.argmax(dim=1).item())
-
-        for _ in range(n_masks):
-            # Random coarse mask, bilinear upsample
-            mask_small = (np.random.rand(mask_size, mask_size) < p1).astype(np.float32)
-            mask_up    = np.array(
-                Image.fromarray(mask_small).resize((W, H), Image.BILINEAR)
-            )
-            mask_up = np.clip(mask_up, 0, 1)
-
-            # Apply mask to input tensor
-            mask_t = torch.tensor(mask_up, dtype=torch.float32, device=device)
-            masked = input_tensor * mask_t.unsqueeze(0).unsqueeze(0)
-
-            logits = model(masked)
-            if isinstance(logits, tuple):
-                logits = logits[0]
-            score = float(F.softmax(logits, dim=1)[0, pred_idx].item())
-
-            sal_map += score * mask_up
-            count   += mask_up
-
-    # Normalise
-    sal_map = sal_map / (count + 1e-7)
-    sal_min, sal_max = sal_map.min(), sal_map.max()
-    if sal_max > sal_min:
-        sal_map = (sal_map - sal_min) / (sal_max - sal_min)
-
-    return sal_map
-
-
-def _run_attention_rollout(
-    model: torch.nn.Module,
-    input_tensor: torch.Tensor,
-    device: str,
-) -> np.ndarray:
-    """
-    Attention Rollout for Swin Transformer.
-
-    Extracts self-attention weights from every SwinTransformerBlock in the
-    last stage, averages across heads, rolls attention through blocks
-    (product of attention matrices), then upsamples to IMG_SIZE×IMG_SIZE.
-
-    Notes
-    -----
-    - Swin uses shifted-window attention; each block attends within its own
-      local window, so rollout is an approximation across windows.
-    - The result can be noisy but is architecturally the most faithful to
-      what the transformer actually "looked at."
-    """
-    model.eval()
-    attentions = []
-
-    def _hook(module, inp, out):
-        # out is the attn_output; we need the raw attn_weights.
-        # Swin's WindowAttention returns (x, attn_weights) when output_attentions=True,
-        # but timm's default forward returns only x.  We instead tap the
-        # stored `attn` buffer that some timm versions expose, or fall back
-        # to using the softmax(QK^T/sqrt(d)) computed inline via a monkey-patch.
-        # Simplest robust approach: store the *input* to the softmax via another hook.
-        pass
-
-    # Robust fallback: hook into every WindowAttention's softmax input.
-    # timm SwinTransformerBlock → attn (WindowAttention) → attn_weights stored after softmax.
-    # We hook `WindowAttention.forward` and capture attn_weights via a closure.
-
-    hooks = []
-    captured = []
-
-    last_stage = model.layers[-1]
-
-    for block in last_stage.blocks:
-        win_attn = block.attn
-
-        def make_hook(wa):
-            original_forward = wa.forward
-
-            def patched_forward(x, mask=None):
-                # Replicate enough of WindowAttention.forward to get attn_weights
-                B_, N, C = x.shape
-                qkv = wa.qkv(x).reshape(B_, N, 3, wa.num_heads, C // wa.num_heads).permute(2, 0, 3, 1, 4)
-                q, k, v = qkv.unbind(0)
-                q = q * wa.scale
-                attn = q @ k.transpose(-2, -1)
-
-                # Relative position bias
-                if hasattr(wa, 'relative_position_bias_table'):
-                    rp_idx  = wa.relative_position_index.view(-1)
-                    rel_pos = wa.relative_position_bias_table[rp_idx].view(
-                        wa.window_size[0] * wa.window_size[1],
-                        wa.window_size[0] * wa.window_size[1],
-                        -1,
-                    ).permute(2, 0, 1).contiguous()
-                    attn = attn + rel_pos.unsqueeze(0)
-
-                if mask is not None:
-                    nW = mask.shape[0]
-                    attn = attn.view(B_ // nW, nW, wa.num_heads, N, N) + mask.unsqueeze(1).unsqueeze(0)
-                    attn = attn.view(-1, wa.num_heads, N, N)
-
-                attn_weights = attn.softmax(dim=-1)
-                captured.append(attn_weights.detach().cpu())
-
-                # Continue original forward using the computed weights
-                attn_drop = wa.attn_drop(attn_weights)
-                x_out = (attn_drop @ v).transpose(1, 2).reshape(B_, N, C)
-                x_out = wa.proj(x_out)
-                x_out = wa.proj_drop(x_out)
-                return x_out
-
-            return patched_forward
-
-        original = win_attn.forward
-        win_attn.forward = make_hook(win_attn)
-        hooks.append((win_attn, original))
-
-    with torch.no_grad():
-        _ = model(input_tensor.to(device))
-
-    # Restore originals
-    for wa, orig in hooks:
-        wa.forward = orig
-
-    if not captured:
-        # Fallback to EigenGradCAM if we couldn't capture attention
-        return _run_eigengradcam(model, input_tensor)
-
-    # Average attention weights across all captured blocks and heads
-    # Each captured tensor: (num_windows * B, num_heads, N_tokens, N_tokens)
-    # Average over heads → (num_windows, N, N), then average window token attention
-    rollout = None
-    for attn_w in captured:
-        # Mean over heads
-        attn_mean = attn_w.mean(dim=1)   # (nW, N, N)
-        # Add residual connection and re-normalise (standard rollout trick)
-        I = torch.eye(attn_mean.shape[-1], device=attn_mean.device).unsqueeze(0)
-        attn_mean = 0.5 * attn_mean + 0.5 * I
-        attn_mean = attn_mean / attn_mean.sum(dim=-1, keepdim=True)
-
-        if rollout is None:
-            rollout = attn_mean.mean(dim=0)   # (N, N) averaged across windows
-        else:
-            rollout = rollout @ attn_mean.mean(dim=0)
-
-    # Take the mean attention from [CLS] equivalent: mean over all token-to-token
-    sal = rollout.mean(dim=0).numpy()   # (N,)
-
-    # Reshape to 2D grid
-    n = sal.shape[0]
-    side = int(math.isqrt(n))
-    if side * side != n:
-        # Non-square window; just use a 1D array reshaped to nearest square
-        side = int(math.ceil(math.sqrt(n)))
-        sal = np.pad(sal, (0, side * side - n))
-    sal_2d = sal.reshape(side, side)
-
-    # Upsample to IMG_SIZE × IMG_SIZE
-    sal_pil = Image.fromarray((sal_2d * 255).clip(0, 255).astype(np.uint8))
-    sal_up  = np.array(sal_pil.resize((IMG_SIZE, IMG_SIZE), Image.BILINEAR), dtype=np.float32)
-
-    # Normalise to [0, 1]
-    sal_min, sal_max = sal_up.min(), sal_up.max()
-    if sal_max > sal_min:
-        sal_up = (sal_up - sal_min) / (sal_max - sal_min)
-
-    return sal_up
-
-
-# ─── Region estimation ────────────────────────────────────────────────────────
 
 def _estimate_region(grayscale_cam: np.ndarray) -> str:
-    """
-    Map the peak activation on the grayscale CAM to a rough spatial label.
-
-    Strategy
-    --------
-    1. Compute peak-to-mean ratio; if low (< 1.8), call it "diffuse".
-    2. Otherwise, find the centroid of the top-10% activation pixels.
-    3. Map the centroid (normalised [0,1] row, col) to a quadrant label.
-    """
-    H, W = grayscale_cam.shape
+    H, W  = grayscale_cam.shape
     flat  = grayscale_cam.flatten()
     mean  = float(flat.mean())
     peak  = float(flat.max())
@@ -421,13 +183,11 @@ def _estimate_region(grayscale_cam: np.ndarray) -> str:
     if mean < 1e-6 or (peak / (mean + 1e-6)) < 1.8:
         return "diffuse"
 
-    # Centroid of top-10% pixels
     threshold = np.percentile(flat, 90)
     ys, xs    = np.where(grayscale_cam >= threshold)
-    cy = float(ys.mean()) / H   # 0 = top, 1 = bottom
-    cx = float(xs.mean()) / W   # 0 = left, 1 = right
+    cy = float(ys.mean()) / H
+    cx = float(xs.mean()) / W
 
-    # Vertical split
     if cy < 0.4:
         vert = "superior"
     elif cy > 0.6:
@@ -435,7 +195,6 @@ def _estimate_region(grayscale_cam: np.ndarray) -> str:
     else:
         vert = "central"
 
-    # Horizontal split
     if cx < 0.38:
         horiz = "left temporal"
     elif cx > 0.62:
@@ -444,17 +203,11 @@ def _estimate_region(grayscale_cam: np.ndarray) -> str:
         horiz = None
 
     if horiz:
-        # Both axes informative → combine
         if vert == "central":
             return horiz
         return f"{vert} {horiz}"
     return vert
 
-
-# ─── Text explanation ─────────────────────────────────────────────────────────
-
-# Template matrix: TEMPLATES[class_name][tier]
-# tier: "high" | "medium" | "low"
 
 _TEMPLATES: dict[str, dict[str, str]] = {
     "NonDemented": {
@@ -543,7 +296,6 @@ _TEMPLATES: dict[str, dict[str, str]] = {
     },
 }
 
-# Fallback template for unknown class names
 _FALLBACK_TEMPLATE = (
     "The model returned a prediction of '{cls}' at {pct}% confidence. "
     "Activation was concentrated in the {region} region. "
@@ -553,15 +305,6 @@ _FALLBACK_TEMPLATE = (
 
 
 def _generate_text(predicted_class: str, confidence: float, region: str) -> str:
-    """
-    Produce a natural-language explanation using the template matrix.
-
-    Parameters
-    ----------
-    predicted_class : one of the four class names (or unknown)
-    confidence      : float in [0, 1]
-    region          : region label from _estimate_region()
-    """
     pct = f"{confidence * 100:.0f}"
 
     if confidence >= _TIER_HIGH:
@@ -573,16 +316,11 @@ def _generate_text(predicted_class: str, confidence: float, region: str) -> str:
 
     templates = _TEMPLATES.get(predicted_class)
     if templates:
-        template = templates[tier]
-        return template.format(pct=pct, region=region)
-    else:
-        return _FALLBACK_TEMPLATE.format(cls=predicted_class, pct=pct, region=region)
+        return templates[tier].format(pct=pct, region=region)
+    return _FALLBACK_TEMPLATE.format(cls=predicted_class, pct=pct, region=region)
 
-
-# ─── Utility ─────────────────────────────────────────────────────────────────
 
 def _pil_to_b64(pil_img: Image.Image) -> str:
-    """Encode a PIL image as a base64 PNG string."""
     buf = io.BytesIO()
     pil_img.convert("RGB").save(buf, format="PNG")
     return base64.b64encode(buf.getvalue()).decode("utf-8")

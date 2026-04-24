@@ -1,7 +1,6 @@
 import torch
 from pathlib import Path
 
-# Device configuration
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Directory structure
@@ -15,14 +14,11 @@ WEIGHTS_PATH       = SAVE_DIR   / "swin_model_weights.pth"
 CLASS_NAMES_PATH   = SAVE_DIR   / "swin_class_names.txt"
 CLASS_WEIGHTS_PATH = SAVE_DIR   / "class_weights.npy"
 
-# Disease tag for the active pipeline run.
-# 'adni' = existing ADNI dataset (ImageFolder).
-# Other values (e.g. 'chestxray14', 'isic2024', 'retinamnist') select a
-# disease registered in the BDA registry.
+# 'adni' | 'chestxray14' | 'isic2024' | 'retinamnist'
 DISEASE_ID = "adni"
 
 # Dataset layout used when building the registry for the first time.
-# One of: 'imagefolder', 'chestxray14', 'isic2024', 'medmnist_png', 'medmnist_hf'
+# 'imagefolder', 'chestxray14', 'isic2024', 'medmnist_png', 'medmnist_hf'
 DATASET_LAYOUT = "imagefolder"
 
 # Where BDA stores its Parquet registry files (one per disease)
@@ -73,7 +69,7 @@ PERSISTENT_WORKERS = True
 EMPTY_CACHE_FREQUENCY = 1
 SAVE_BEST_ONLY        = True
 
-# ── MLflow tracking ───────────────────────────────────────────────────────────
+# MLflow tracking
 MLFLOW_TRACKING_URI = "mlruns/"
 USE_MLFLOW = True  # Set False to use CSV-only logging (legacy behaviour)
 

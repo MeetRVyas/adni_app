@@ -1,14 +1,3 @@
-"""
-Progressive Classifier - Your sophisticated ProgressiveFineTuner converted to BaseClassifier
-
-Features:
-- Architecture-aware layer grouping (ResNet, ViT, Swin, EfficientNet, MobileNet)
-- 3-phase discriminative fine-tuning
-- Focal Loss for hard examples
-- SAM optimizer support in Phase 3
-- Research-grade training strategy
-"""
-
 import torch
 import torch.optim as optim
 import timm
