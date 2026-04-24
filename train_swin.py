@@ -42,7 +42,7 @@ CLASSIFIER_TYPE = "progressive"
 
 def _parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--disease", type=str, default=None,
+    parser.add_argument("--disease", type=str, default="adni",
                    help="Disease tag (overrides config.DISEASE_ID)")
     parser.add_argument("--no_bda", action="store_true",
                    help="Force legacy FullDataset mode")
