@@ -74,6 +74,5 @@ MLFLOW_TRACKING_URI = "mlruns/"
 USE_MLFLOW = True  # Set False to use CSV-only logging (legacy behaviour)
 
 # Create necessary directories
-DATA_DIR.mkdir(exist_ok = True)
-LOG_DIR.mkdir(exist_ok = True)
-SAVE_DIR.mkdir(exist_ok = True)
+for _dir in [DATA_DIR, LOG_DIR, SAVE_DIR] :
+    _dir.mkdir(parents = True, exist_ok = True)

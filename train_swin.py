@@ -17,22 +17,19 @@ Outputs:
 """
 
 import argparse
-import os, sys, gc
+import gc
 import torch
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import train_test_split, StratifiedKFold
 
-ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT))
 
 from package.config import (
     DATA_DIR, DEVICE, EPOCHS, NFOLDS, BATCH_SIZE,
     NUM_WORKERS, PIN_MEMORY, PERSISTENT_WORKERS, LR,
     TEST_SPLIT, OPTIMIZE_METRIC, MODEL_NAME, IMG_SIZE,
-    TEMP_WEIGHTS_PATH, CLASS_NAMES_PATH,WEIGHTS_PATH,
+    ROOT, CLASS_NAMES_PATH, WEIGHTS_PATH, TEMP_WEIGHTS_PATH,
     USE_BDA_PIPELINE, DISEASE_ID, REGISTRY_DIR, SHARDS_DIR,
     DATASET_LAYOUT, DATASET_CSV, AUTO_RUN_PIPELINE,
     USE_MLFLOW, MLFLOW_TRACKING_URI,
@@ -41,14 +38,7 @@ from package.utils import FullDataset, Logger, get_base_transformations, ensure_
 from package.model import ProgressiveClassifier
 from data_pipeline.loaders.webdataset_loader import get_dataloader
 
-# ─────────────────────────────────────────────────────────────────────────────
-MODEL_NAME      = "swin_base_patch4_window7_224.ms_in22k_ft_in1k"
 CLASSIFIER_TYPE = "progressive"
-SAVE_DIR        = ROOT / "saved_models"
-WEIGHTS_PATH    = SAVE_DIR / "swin_progressive_best.pth"
-CLASS_NAMES_PATH= SAVE_DIR / "swin_class_names.txt"
-# ─────────────────────────────────────────────────────────────────────────────
-
 
 def _parse_args():
     p = argparse.ArgumentParser()
@@ -90,7 +80,6 @@ def _build_legacy_loader(full_dataset, indices, shuffle):
 
 def train():
     args = _parse_args()
-    SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
     disease_id  = args.disease or DISEASE_ID
     use_bda     = USE_BDA_PIPELINE and not args.no_bda
@@ -147,7 +136,6 @@ def train():
 
     fold_results  = []
     best_fold_val = 0.0
-    best_fold_path = SAVE_DIR / "swin_progressive_best_fold.pth"
 
     # ── K-Fold ────────────────────────────────────────────────────────────────
     if use_bda:
@@ -191,7 +179,7 @@ def train():
 
         if clf.best_metric_value > best_fold_val:
             best_fold_val = clf.best_metric_value
-            clf.save(str(best_fold_path))
+            clf.save(str(WEIGHTS_PATH))
             logger.info(f"  * New best fold ({best_fold_val:.4f}) — fold checkpoint updated")
 
         del clf, train_loader, val_loader
@@ -220,7 +208,7 @@ def train():
         test_loader = _build_legacy_loader(full_dataset, test_idx, shuffle=False)
 
     eval_clf = ProgressiveClassifier(class_weights_tensor=class_weights_tensor,)
-    checkpoint = WEIGHTS_PATH if WEIGHTS_PATH.exists() else best_fold_path
+    checkpoint = WEIGHTS_PATH if WEIGHTS_PATH.exists() else TEMP_WEIGHTS_PATH
     eval_clf.load(str(checkpoint))
     logger.info(f"Loaded checkpoint : {checkpoint}")
 
