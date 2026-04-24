@@ -41,12 +41,23 @@ from data_pipeline.loaders.webdataset_loader import get_dataloader
 CLASSIFIER_TYPE = "progressive"
 
 def _parse_args():
-    p = argparse.ArgumentParser()
-    p.add_argument("--disease", type=str, default=None,
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--disease", type=str, default=None,
                    help="Disease tag (overrides config.DISEASE_ID)")
-    p.add_argument("--no_bda", action="store_true",
+    parser.add_argument("--no_bda", action="store_true",
                    help="Force legacy FullDataset mode")
-    return p.parse_args()
+    
+    parser.add_argument("--data_dir",   type=str, default=None,
+                        help="Path to dataset root (overrides config.DATA_DIR)")
+
+    # --- Hyperparameters ---
+    parser.add_argument("--epochs", type=int, default=None,
+                        help="Number of training epochs (overrides config.EPOCHS)")
+    parser.add_argument("--folds",  type=int, default=None,
+                        help="Number of CV folds (overrides config.NFOLDS)")
+    parser.add_argument("--patience", type=int, default=None,
+                        help="Number of epochs for Early Stopping (overrides config.PATIENCE)")
+    return parser.parse_args()
 
 
 def _build_bda_loaders(disease_id, img_size, fold_idx):
@@ -77,9 +88,39 @@ def _build_legacy_loader(full_dataset, indices, shuffle):
         persistent_workers=PERSISTENT_WORKERS and NUM_WORKERS > 0,
     )
 
+def configure(
+    data_dir:     str  = None,
+    epochs:       int  = None,
+    nfolds:       int  = None,
+    patience:     int  = None,
+):
+    """
+    Override mutable config values at runtime.
+    Only non-None arguments are applied.
+    """
+    import package.config as cfg
+
+    if data_dir is not None:
+        cfg.DATA_DIR = data_dir
+
+    if epochs is not None:
+        cfg.EPOCHS = epochs
+
+    if nfolds is not None:
+        cfg.NFOLDS = nfolds
+
+    if patience is not None:
+        cfg.PATIENCE = patience
 
 def train():
     args = _parse_args()
+
+    configure(
+        data_dir=args.data_dir,
+        epochs=args.epochs,
+        nfolds=args.folds,
+        patience=args.patience,
+    )
 
     disease_id  = args.disease or DISEASE_ID
     use_bda     = USE_BDA_PIPELINE and not args.no_bda
