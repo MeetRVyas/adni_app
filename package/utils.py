@@ -4,7 +4,7 @@ import torch
 from torchvision import transforms, datasets
 from PIL import Image
 import logging
-from package.config import LOG_DIR
+from package.config import LOG_DIR, IMG_SIZE
 from package.pipeline import run_pipeline
 
 
@@ -34,7 +34,7 @@ def ensure_pipeline_ready(
     registry_dir: str,
     shards_dir: str,
     nfolds: int,
-    target_size: int = 224,
+    target_size: int = IMG_SIZE,
     csv_path=None,
     auto_run: bool = True,
 ) -> bool:

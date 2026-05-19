@@ -1,20 +1,3 @@
-"""
-Training script for swin_base_patch4_window7_224.ms_in22k_ft_in1k
-using ProgressiveClassifier from the existing module.
-
-Respects config.USE_BDA_PIPELINE:
-  True  → data loaded via DiseaseRegistry / WebDataset shards
-  False → data loaded via legacy FullDataset / ImageFolder
-
-Usage:
-    python train_swin.py
-    python train_swin.py --no_bda          # force legacy mode
-    python train_swin.py --disease adni    # explicit disease tag
-
-Outputs:
-    saved_models/swin_progressive_best.pth   -- model weights
-    saved_models/swin_class_names.txt        -- class names (one per line)
-"""
 
 import argparse
 import gc
@@ -29,7 +12,7 @@ from package.config import (
     DATA_DIR, DEVICE, EPOCHS, NFOLDS, BATCH_SIZE,
     NUM_WORKERS, PIN_MEMORY, PERSISTENT_WORKERS, LR,
     TEST_SPLIT, OPTIMIZE_METRIC, MODEL_NAME, IMG_SIZE,
-    ROOT, CLASS_NAMES_PATH, WEIGHTS_PATH, TEMP_WEIGHTS_PATH,
+    CLASS_NAMES_PATH, WEIGHTS_PATH, TEMP_WEIGHTS_PATH,
     USE_BDA_PIPELINE, DISEASE_ID, REGISTRY_DIR, SHARDS_DIR,
     DATASET_LAYOUT, DATASET_CSV, AUTO_RUN_PIPELINE,
     USE_MLFLOW, MLFLOW_TRACKING_URI,
@@ -61,8 +44,6 @@ def _parse_args():
 
 
 def _build_bda_loaders(disease_id, img_size, fold_idx):
-    """Return (train_loader, val_loader) from BDA pipeline for one fold."""
-
     train_loader = get_dataloader(
         disease=disease_id, fold=fold_idx, split="train",
         img_size=img_size, batch_size=BATCH_SIZE,
@@ -94,20 +75,20 @@ def configure(
     nfolds:       int  = None,
     patience:     int  = None,
 ):
-    """
-    Override mutable config values at runtime.
-    Only non-None arguments are applied.
-    """
     import package.config as cfg
+    global DATA_DIR, EPOCHS, NFOLDS
 
     if data_dir is not None:
         cfg.DATA_DIR = data_dir
+        DATA_DIR = data_dir
 
     if epochs is not None:
         cfg.EPOCHS = epochs
+        EPOCHS = epochs
 
     if nfolds is not None:
         cfg.NFOLDS = nfolds
+        NFOLDS = nfolds
 
     if patience is not None:
         cfg.PATIENCE = patience
