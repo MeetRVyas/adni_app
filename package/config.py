@@ -14,27 +14,9 @@ WEIGHTS_PATH       = SAVE_DIR   / "swin_model_weights.pth"
 CLASS_NAMES_PATH   = SAVE_DIR   / "swin_class_names.txt"
 CLASS_WEIGHTS_PATH = SAVE_DIR   / "class_weights.npy"
 
-# 'adni' | 'chestxray14' | 'isic2024' | 'retinamnist'
-DISEASE_ID = "adni"
-
 # Dataset layout used when building the registry for the first time.
 # 'imagefolder', 'chestxray14', 'isic2024', 'medmnist_png', 'medmnist_hf'
 DATASET_LAYOUT = "imagefolder"
-
-# Where BDA stores its Parquet registry files (one per disease)
-REGISTRY_DIR = "registry/"
-
-# Where BDA stores pre-processed WebDataset .tar shards
-SHARDS_DIR = "shards/"
-
-# Whether to use the BDA data pipeline.
-# True  → use DiseaseRegistry + WebDataset shards (or RegistryDataset fallback)
-# False → legacy FullDataset / ImageFolder (original behaviour, ADNI only)
-USE_BDA_PIPELINE = True
-
-# Whether to build the registry + shards automatically on first run if they
-# do not exist yet.  Set False if you want to manage ETL separately.
-AUTO_RUN_PIPELINE = True
 
 # Optional CSV annotation path (required for 'chestxray14' and 'isic2024' layouts)
 DATASET_CSV = None  # e.g. "staging/chestxray14/Data_Entry_2017.csv"
@@ -71,7 +53,7 @@ SAVE_BEST_ONLY        = True
 
 # MLflow tracking
 MLFLOW_TRACKING_URI = "mlruns/"
-USE_MLFLOW = True  # Set False to use CSV-only logging (legacy behaviour)
+USE_MLFLOW = True  # Set False to use CSV-only logging
 
 # Create necessary directories
 for _dir in [DATA_DIR, LOG_DIR, SAVE_DIR] :

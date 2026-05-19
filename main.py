@@ -10,10 +10,9 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import Response, HTMLResponse, JSONResponse, FileResponse
 from contextlib import asynccontextmanager
-import spaces
-from huggingface_hub import snapshot_download
+import boto3
 
 from package.explainability import explain_image
 from package.visualization import cam_statistics, batch_summary
@@ -44,13 +43,11 @@ def load_model():
     if not WEIGHTS_PATH.exists():
         print("[INFO] Downloading weights from Hugging Face Hub...")
         SAVE_DIR.mkdir(parents=True, exist_ok=True)
-        snapshot_download(
-            repo_id=os.environ["HF_MODEL_REPO"],
-            repo_type="model",
-            local_dir=str(SAVE_DIR),
-            token=os.environ.get("HF_TOKEN"),
-        )
-        print("[INFO] Weights downloaded.")
+        s3 = boto3.client("s3")
+        bucket = os.environ["S3_ARTIFACTS_BUCKET"]  # e.g. "neuroscan-artifacts"
+        for filename in ["swin_model_weights.pth", "swin_class_names.txt", "class_weights.npy"]:
+            s3.download_file(bucket, f"saved_models/{filename}", str(SAVE_DIR / filename))
+        print("[INFO] Weights downloaded from S3.")
 
     _class_names = (
         CLASS_NAMES_PATH.read_text().strip().splitlines()
@@ -86,7 +83,6 @@ def _get_predictions(logits: torch.Tensor) -> np.ndarray:
     return F.softmax(logits, dim=1).cpu().numpy()
 
 
-@spaces.GPU
 def _predict_tensor(img_tensor: torch.Tensor) -> np.ndarray:
     with torch.inference_mode():
         logits = _model(img_tensor.to(DEVICE))
@@ -173,12 +169,6 @@ async def _collect_images(files: List[UploadFile]) -> List[tuple]:
             except Exception:
                 raise HTTPException(400, f"Cannot open file: {uf.filename}")
     return pairs
-
-
-# Routes
-@app.get("/health")
-def health():
-    return {"status": "ok", "model_loaded": _model is not None, "device": DEVICE}
 
 
 @app.get("/classes")
@@ -314,6 +304,29 @@ async def explain_stats(file: UploadFile = File(...)):
         "region":          expl["region"],
         "cam_stats":       stats,
     })
+
+
+# Routes
+@app.get("/health")
+def health():
+    return {"status": "ok", "model_loaded": _model is not None, "device": DEVICE}
+
+
+@app.get("/ping")
+def ping():
+    # SageMaker calls this every 5s to confirm the container is alive
+    if _model is None:
+        return Response(status_code=503)
+    return Response(status_code=200)
+
+@app.post("/invocations")
+async def invocations(
+    files: List[UploadFile] = File(...),
+    mode: str = Form("avg_probability"),
+):
+    # SageMaker sends inference requests here
+    # Delegates to existing predict logic
+    return await predict(files=files, mode=mode)
 
 
 @app.get("/", response_class=HTMLResponse)

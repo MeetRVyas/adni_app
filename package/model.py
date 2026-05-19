@@ -109,17 +109,19 @@ class ProgressiveClassifier :
         
         return param_groups
     
-    def fit(self, train_loader, val_loader, use_sam = True):
-        print(f"\n{'='*80}")
-        print(f"PROGRESSIVE FINE-TUNING: {MODEL_NAME}")
-        print(f"Optimizing for: {OPTIMIZE_METRIC.upper()}")
-        print(f"{'='*80}\n")
+    def fit(self, train_loader, val_loader, use_sam : bool = True, verbose : int = 1):
+        if verbose :
+            print(f"\n{'='*80}")
+            print(f"PROGRESSIVE FINE-TUNING: {MODEL_NAME}")
+            print(f"Optimizing for: {OPTIMIZE_METRIC.upper()}")
+            print(f"{'='*80}\n")
         remaining_epochs = EPOCHS
         
-        # Phase 1: Classifier only (5 epochs)
-        print("="*80)
-        print("PHASE 1: Training Classifier Only (Backbone Frozen)")
-        print("="*80)
+        if verbose :
+            # Phase 1: Classifier only (5 epochs)
+            print("="*80)
+            print("PHASE 1: Training Classifier Only (Backbone Frozen)")
+            print("="*80)
         
         self._train_phase(
             phase=1,
@@ -130,14 +132,16 @@ class ProgressiveClassifier :
             freeze_mode='classifier_only',
             use_sam=False,
             patience=5,
+            verbose = verbose
         )
         
         # Phase 2: Top 50% layers (10 epochs)
         remaining_epochs = max(0, remaining_epochs - 5)
         if remaining_epochs > 0:
-            print("\n" + "="*80)
-            print("PHASE 2: Fine-tuning Top Layers (Bottom 50% Frozen)")
-            print("="*80)
+            if verbose :
+                print("\n" + "="*80)
+                print("PHASE 2: Fine-tuning Top Layers (Bottom 50% Frozen)")
+                print("="*80)
             
             self._train_phase(
                 phase=2,
@@ -148,14 +152,16 @@ class ProgressiveClassifier :
                 freeze_mode='top_50',
                 use_sam=False,
                 patience=10,
+                verbose = verbose
             )
         
         # Phase 3: All layers with discriminative LRs (remaining epochs)
         remaining_epochs = max(0, remaining_epochs - 10)
         if remaining_epochs > 0:
-            print("\n" + "="*80)
-            print("PHASE 3: Discriminative Fine-Tuning (All Layers)")
-            print("="*80)
+            if verbose :
+                print("\n" + "="*80)
+                print("PHASE 3: Discriminative Fine-Tuning (All Layers)")
+                print("="*80)
             
             self._train_phase(
                 phase=3,
@@ -166,18 +172,22 @@ class ProgressiveClassifier :
                 freeze_mode='all_discriminative',
                 use_sam=use_sam,  # SAM only in phase 3
                 patience=PATIENCE,
+                verbose = verbose
             )
         
-        print(f"\n{'='*80}")
-        print("PROGRESSIVE FINE-TUNING COMPLETE")
-        print(f"Final Best {OPTIMIZE_METRIC.capitalize()}: {self.best_metric_value:.4f} ★")
-        print(f"Final Best Recall: {self.best_recall:.4f}")
-        print(f"Final Best Accuracy: {self.best_acc:.2f}%")
-        print(f"{'='*80}\n")
+        if verbose :
+            print(f"\n{'='*80}")
+            print("PROGRESSIVE FINE-TUNING COMPLETE")
+            print(f"Final Best {OPTIMIZE_METRIC.capitalize()}: {self.best_metric_value:.4f} ★")
+            print(f"Final Best Recall: {self.best_recall:.4f}")
+            print(f"Final Best Accuracy: {self.best_acc:.2f}%")
+            print(f"{'='*80}\n")
         
         return self.history
     
-    def _train_phase(self, phase, train_loader, val_loader, epochs, lr, freeze_mode, use_sam, patience):
+    def _train_phase(self, phase, train_loader, val_loader, epochs, lr, freeze_mode, use_sam, patience, verbose):
+        if verbose :
+            print(f"Phase {phase}")
         
         # Freeze/unfreeze according to mode
         if freeze_mode == 'classifier_only':
@@ -233,6 +243,8 @@ class ProgressiveClassifier :
         patience_counter = 0
         
         for epoch in range(epochs):
+            if verbose :
+                print(f"{epoch + 1}")
             # Train
             train_loss, train_acc, train_recall = self.train_epoch(
                 train_loader, optimizer, scaler if not use_sam else None
@@ -286,7 +298,8 @@ class ProgressiveClassifier :
                 print(f"  Early stopping (patience={patience})")
                 break
             
-        print(f"Phase {phase} Complete - Best {OPTIMIZE_METRIC}: {self.best_metric_value:.4f}")
+        if verbose :
+            print(f"Phase {phase} Complete - Best {OPTIMIZE_METRIC}: {self.best_metric_value:.4f}")
     
     def train_epoch(self, train_loader, optimizer, scaler=None):
         self.model.train()
