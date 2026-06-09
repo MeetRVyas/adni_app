@@ -4,7 +4,6 @@ import io
 import base64
 from typing import Optional
 
-import cv2
 import numpy as np
 from PIL import Image
 import torch
@@ -105,21 +104,30 @@ def _swin_target_layer(model: torch.nn.Module) -> torch.nn.Module:
     return model.layers[-1].blocks[-1].norm2
 
 
+def _apply_jet_colormap(heatmap_uint8: np.ndarray) -> np.ndarray:
+    """Pure numpy JET colormap — matches cv2.COLORMAP_JET output, RGB."""
+    t = heatmap_uint8.astype(np.float32) / 255.0
+    r = np.clip(1.5 - np.abs(4.0 * t - 3.0), 0.0, 1.0)
+    g = np.clip(1.5 - np.abs(4.0 * t - 2.0), 0.0, 1.0)
+    b = np.clip(1.5 - np.abs(4.0 * t - 1.0), 0.0, 1.0)
+    return (np.stack([r, g, b], axis=-1) * 255).astype(np.uint8)
+
+
 def _gradcam_overlay(
     heatmap: np.ndarray,
     original_img_np: np.ndarray,
     alpha: float = _GRADCAM_ALPHA,
 ) -> np.ndarray:
-    """
-    Resize heatmap, apply COLORMAP_JET, blend with addWeighted.
-    Mirrors generate_gradcam_plot from the reference exactly.
-    """
     h, w = original_img_np.shape[:2]
 
-    heatmap_resized = cv2.resize(heatmap, (w, h))
-    heatmap_uint8   = np.uint8(255 * heatmap_resized)
-    heatmap_colored = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
-    heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
+    # replaces cv2.resize
+    heatmap_resized = np.array(
+        Image.fromarray(np.uint8(heatmap * 255)).resize((w, h), Image.BILINEAR),
+        dtype=np.float32,
+    ) / 255.0
+
+    # replaces cv2.applyColorMap + cv2.cvtColor (outputs RGB directly)
+    heatmap_colored = _apply_jet_colormap(np.uint8(heatmap_resized * 255))
 
     img = original_img_np
     if img.max() <= 1.0:
@@ -127,7 +135,11 @@ def _gradcam_overlay(
     else:
         img = np.uint8(img)
 
-    return cv2.addWeighted(img, 1, heatmap_colored, alpha, 0)
+    # replaces cv2.addWeighted(img, 1, heatmap_colored, alpha, 0)
+    return np.clip(
+        img.astype(np.float32) + heatmap_colored.astype(np.float32) * alpha,
+        0, 255,
+    ).astype(np.uint8)
 
 
 def explain_image(

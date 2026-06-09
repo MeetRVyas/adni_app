@@ -12,6 +12,7 @@ from torchvision import transforms
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import Response, HTMLResponse, JSONResponse, FileResponse
 from contextlib import asynccontextmanager
+from huggingface_hub import hf_hub_download
 
 from package.explainability import explain_image
 from package.visualization import cam_statistics, batch_summary
@@ -38,6 +39,23 @@ _class_weights_tensor = None
 
 def load_model():
     global _model, _class_names, _transform, _class_weights_tensor
+
+    if not WEIGHTS_PATH.exists():
+        print("[INFO] Downloading weights from Hugging Face Hub...")
+        SAVE_DIR.mkdir(parents=True, exist_ok=True)
+        
+        repo_id = os.environ["HF_MODEL_REPO"]
+        token   = os.environ.get("HF_TOKEN")
+
+        for filename in ["swin_progressive_best.pth", "swin_class_names.txt", "class_weights.npy"]:
+            hf_hub_download(
+                repo_id=repo_id,
+                filename=filename,
+                local_dir=str(SAVE_DIR),
+                token=token,
+            )
+
+        print("[INFO] Weights downloaded from HF Hub.")
 
     _class_names = (
         CLASS_NAMES_PATH.read_text().strip().splitlines()

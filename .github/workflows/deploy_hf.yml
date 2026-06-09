@@ -1,0 +1,47 @@
+# .github/workflows/deploy_hf.yml
+name: Deploy to HF Space
+
+on:
+  push:
+    branches: [main]
+    paths:                  # only triggers when these change
+      - 'package/config.py'
+      - 'package/visualization.py'
+      - 'package/explainability.py'
+      - 'index.html'
+      - 'deploy/hf/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble Space directory
+        run: |
+          mkdir -p space_build/package
+          cp package/config.py              space_build/package/config.py
+          cp package/visualization.py       space_build/package/visualization.py
+          cp package/explainability.py      space_build/package/explainability.py
+          cp    index.html                  space_build/index.html
+          cp    deploy/hf/Dockerfile        space_build/Dockerfile
+          cp    deploy/hf/main.py           space_build/main.py
+          cp    deploy/hf/requirements.txt  space_build/requirements.txt
+
+      - name: Push to HF Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          pip install -q huggingface_hub
+          python - <<'EOF'
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          api.upload_folder(
+              folder_path="space_build",
+              repo_id="MeetV16/neuroscan",        # hardcoded, not a secret
+              repo_type="space",
+              commit_message="deploy from GitHub",
+          )
+          print("Deployed.")
+          EOF

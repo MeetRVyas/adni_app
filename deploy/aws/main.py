@@ -12,6 +12,7 @@ from torchvision import transforms
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import Response, HTMLResponse, JSONResponse, FileResponse
 from contextlib import asynccontextmanager
+import boto3
 
 from package.explainability import explain_image
 from package.visualization import cam_statistics, batch_summary
@@ -38,6 +39,15 @@ _class_weights_tensor = None
 
 def load_model():
     global _model, _class_names, _transform, _class_weights_tensor
+
+    if not WEIGHTS_PATH.exists():
+        print("[INFO] Downloading weights from Hugging Face Hub...")
+        SAVE_DIR.mkdir(parents=True, exist_ok=True)
+        s3 = boto3.client("s3")
+        bucket = os.environ["S3_ARTIFACTS_BUCKET"]  # e.g. "neuroscan-artifacts"
+        for filename in ["swin_model_weights.pth", "swin_class_names.txt", "class_weights.npy"]:
+            s3.download_file(bucket, f"saved_models/{filename}", str(SAVE_DIR / filename))
+        print("[INFO] Weights downloaded from S3.")
 
     _class_names = (
         CLASS_NAMES_PATH.read_text().strip().splitlines()
@@ -300,6 +310,23 @@ async def explain_stats(file: UploadFile = File(...)):
 @app.get("/health")
 def health():
     return {"status": "ok", "model_loaded": _model is not None, "device": DEVICE}
+
+
+@app.get("/ping")
+def ping():
+    # SageMaker calls this every 5s to confirm the container is alive
+    if _model is None:
+        return Response(status_code=503)
+    return Response(status_code=200)
+
+@app.post("/invocations")
+async def invocations(
+    files: List[UploadFile] = File(...),
+    mode: str = Form("avg_probability"),
+):
+    # SageMaker sends inference requests here
+    # Delegates to existing predict logic
+    return await predict(files=files, mode=mode)
 
 
 @app.get("/", response_class=HTMLResponse)
