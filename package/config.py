@@ -10,7 +10,7 @@ OUTPUT_DIR         = ROOT       / "output"
 LOG_DIR            = OUTPUT_DIR / "logs"
 SAVE_DIR           = OUTPUT_DIR / "saved_models"
 TEMP_WEIGHTS_PATH  = SAVE_DIR   / "temp_model_weights.pth"
-WEIGHTS_PATH       = SAVE_DIR   / "swin_model_weights.pth"
+WEIGHTS_PATH       = SAVE_DIR   / "swin_progressive_best.pth"
 CLASS_NAMES_PATH   = SAVE_DIR   / "swin_class_names.txt"
 CLASS_WEIGHTS_PATH = SAVE_DIR   / "class_weights.npy"
 
