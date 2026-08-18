@@ -10,6 +10,7 @@ on:
       - 'package/explainability.py'
       - 'index.html'
       - 'deploy/hf/**'
+  workflow_dispatch:
 
 jobs:
   deploy:
