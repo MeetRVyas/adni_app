@@ -41,6 +41,9 @@ COPY --chown=user package/config.py \
                   package/explainability.py \
                   ./package/
 
+# Ensure package is recognized as a Python module
+RUN touch ./package/__init__.py
+
 # HF Spaces listens on 7860
 EXPOSE 7860
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
