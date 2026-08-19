@@ -1,7 +1,13 @@
-import io, sys, zipfile, base64
-from pathlib import Path
-from typing import List
+# `spaces` must be imported before anything that touches torch/CUDA — it
+# monkey-patches torch's CUDA entrypoints so `.to("cuda")` calls at module
+# scope succeed even though no physical GPU is attached to this process.
+# (No-op outside Hugging Face's ZeroGPU hardware, so this is safe locally too.)
+import spaces
+
+import io
 import os
+import zipfile
+from typing import List, Tuple
 
 import numpy as np
 import timm
@@ -9,27 +15,25 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
-from fastapi.responses import Response, HTMLResponse, JSONResponse, FileResponse
-from contextlib import asynccontextmanager
+from fastapi import File, UploadFile, Form, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from huggingface_hub import hf_hub_download
+from gradio import Server
 
 from package.explainability import explain_image
 from package.visualization import cam_statistics, batch_summary
 from package.config import (
     MODEL_NAME, ROOT, SAVE_DIR, WEIGHTS_PATH,
     CLASS_NAMES_PATH, CLASS_WEIGHTS_PATH,
-    IMG_SIZE, DEVICE
+    IMG_SIZE, DEVICE,
 )
 
 
-# ─── Startup ─────────────────────────────────────────────────────────────────
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    load_model()
-    yield
-
-app = FastAPI(title="Alzheimer MRI Classifier", lifespan=lifespan)
+# ─── App ───────────────────────────────────────────────────────────────────
+# gradio.Server is a FastAPI app with Gradio's queue/ZeroGPU engine wired in,
+# so every route below is a normal FastAPI route — same signatures, same
+# request/response shapes as the original main.py.
+app = Server(title="Alzheimer MRI Classifier")
 
 _model = None
 _class_names: List[str] = []
@@ -43,7 +47,7 @@ def load_model():
     if not WEIGHTS_PATH.exists():
         print("[INFO] Downloading weights from Hugging Face Hub...")
         SAVE_DIR.mkdir(parents=True, exist_ok=True)
-        
+
         repo_id = os.environ["HF_MODEL_REPO"]
         token   = os.environ.get("HF_TOKEN")
 
@@ -85,32 +89,109 @@ def load_model():
     print(f"[INFO] Model loaded from {checkpoint.name}  |  classes={_class_names}  |  device={DEVICE}")
 
 
+# ZeroGPU wants models loaded — and moved to "cuda" — eagerly at module
+# scope, not lazily on first request. `DEVICE` above already resolves to
+# "cuda" under ZeroGPU (torch.cuda.is_available() is monkey-patched to
+# report True), so this is the standard idiom, not a lazy-load pattern.
+load_model()
+
+
+# ─── Inference helpers ───────────────────────────────────────────────────────
 def _get_predictions(logits: torch.Tensor) -> np.ndarray:
     log_weights = torch.log(_class_weights_tensor + 1e-10)
     logits      = logits + log_weights.view(1, -1)
     return F.softmax(logits, dim=1).cpu().numpy()
 
 
-def _predict_tensor(img_tensor: torch.Tensor) -> np.ndarray:
-    with torch.inference_mode():
-        logits = _model(img_tensor.to(DEVICE))
-        if isinstance(logits, tuple):
-            logits = logits[0]
-    return _get_predictions(logits)
-
-
 def _pil_to_tensor(pil_img: Image.Image) -> torch.Tensor:
     return _transform(pil_img.convert("RGB")).unsqueeze(0)
 
 
-def _predict_image(pil_img: Image.Image) -> dict:
-    probs    = _predict_tensor(_pil_to_tensor(pil_img))[0]
+def _predict_duration(pil_images: List[Image.Image]) -> int:
+    # Dynamic ZeroGPU duration: scales with batch size instead of a fixed
+    # worst-case ceiling, so small requests aren't penalised in the quota
+    # pre-check or the node-level queue.
+    return min(120, max(15, 5 + 2 * len(pil_images)))
+
+
+@spaces.GPU(duration=_predict_duration)
+def _run_batch_predict(pil_images: List[Image.Image]) -> List[dict]:
+    """
+    Runs the whole batch through the model in a single GPU entry (one fork,
+    one CUDA re-attach) rather than one entry per image.
+    """
+    tensors = torch.cat([_pil_to_tensor(p) for p in pil_images], dim=0)
+    with torch.inference_mode():
+        logits = _model(tensors.to(DEVICE))
+        if isinstance(logits, tuple):
+            logits = logits[0]
+    probs_batch = _get_predictions(logits)
+
+    results = []
+    for probs in probs_batch:
+        pred_idx = int(np.argmax(probs))
+        results.append({
+            "predicted_class": _class_names[pred_idx],
+            "confidence":      float(probs[pred_idx]),
+            "probabilities":   {c: float(p) for c, p in zip(_class_names, probs)},
+        })
+    return results
+
+
+@spaces.GPU(duration=30)
+def _run_explain(pil_img: Image.Image) -> dict:
+    """
+    One GPU entry covering both the classification forward pass and the
+    GradCAM forward+backward pass, so /explain only forks once.
+    """
+    tensor = _pil_to_tensor(pil_img)
+    with torch.inference_mode():
+        logits = _model(tensor.to(DEVICE))
+        if isinstance(logits, tuple):
+            logits = logits[0]
+    probs    = _get_predictions(logits)[0]
     pred_idx = int(np.argmax(probs))
-    return {
+    pred = {
         "predicted_class": _class_names[pred_idx],
         "confidence":      float(probs[pred_idx]),
         "probabilities":   {c: float(p) for c, p in zip(_class_names, probs)},
     }
+
+    # NativeGradCAM needs grad enabled for its backward hook; inference_mode
+    # above has already exited by this point so this is unaffected.
+    expl = explain_image(
+        pil_img         = pil_img,
+        model           = _model,
+        transform       = _transform,
+        class_names     = _class_names,
+        predicted_class = pred["predicted_class"],
+        confidence      = pred["confidence"],
+        device          = DEVICE,
+    )
+    return {"pred": pred, "expl": expl}
+
+
+async def _collect_images(files: List[UploadFile]) -> List[Tuple[Image.Image, str]]:
+    """Async: return list of (pil_image, filename) from uploads + ZIPs."""
+    pairs = []
+    for uf in files:
+        raw = await uf.read()
+        if uf.filename and uf.filename.endswith(".zip"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                    for name in z.namelist():
+                        if name.lower().endswith((".png", ".jpg", ".jpeg", ".tiff")):
+                            pil = Image.open(io.BytesIO(z.read(name))).convert("RGB")
+                            pairs.append((pil, name))
+            except Exception as exc:
+                raise HTTPException(400, f"Cannot open ZIP '{uf.filename}': {exc}")
+        else:
+            try:
+                pil = Image.open(io.BytesIO(raw)).convert("RGB")
+                pairs.append((pil, uf.filename or "unknown"))
+            except Exception:
+                raise HTTPException(400, f"Cannot open file: {uf.filename}")
+    return pairs
 
 
 def _aggregate_max_prob(results: List[dict]) -> dict:
@@ -147,38 +228,7 @@ def _aggregate_mean_prob(results: List[dict]) -> dict:
     }
 
 
-def _read_images_from_uploads(files: List[UploadFile]) -> List[tuple[Image.Image, str]]:
-    """Yield (PIL image, filename) pairs from a list of uploads, expanding ZIPs."""
-    out = []
-    for uf in files:
-        raw = uf.read() if not hasattr(uf, '_body') else uf._body  # sync fallback
-        raise RuntimeError("Use the async version below")
-    return out
-
-
-async def _collect_images(files: List[UploadFile]) -> List[tuple]:
-    """Async: return list of (pil_image, filename) from uploads + ZIPs."""
-    pairs = []
-    for uf in files:
-        raw = await uf.read()
-        if uf.filename and uf.filename.endswith(".zip"):
-            try:
-                with zipfile.ZipFile(io.BytesIO(raw)) as z:
-                    for name in z.namelist():
-                        if name.lower().endswith((".png", ".jpg", ".jpeg", ".tiff")):
-                            pil = Image.open(io.BytesIO(z.read(name))).convert("RGB")
-                            pairs.append((pil, name))
-            except Exception as exc:
-                raise HTTPException(400, f"Cannot open ZIP '{uf.filename}': {exc}")
-        else:
-            try:
-                pil = Image.open(io.BytesIO(raw)).convert("RGB")
-                pairs.append((pil, uf.filename or "unknown"))
-            except Exception:
-                raise HTTPException(400, f"Cannot open file: {uf.filename}")
-    return pairs
-
-
+# ─── Routes — identical paths, request shapes, and response shapes ──────────
 @app.get("/classes")
 def classes():
     return {"classes": _class_names}
@@ -196,9 +246,13 @@ async def predict(
     if not pairs:
         raise HTTPException(400, "No valid images were found in the uploaded files.")
 
+    pil_images = [p for p, _ in pairs]
+    fnames     = [f for _, f in pairs]
+    batch      = _run_batch_predict(pil_images)
+
     results = []
-    for pil, fname in pairs:
-        res = _predict_image(pil)
+    for res, fname in zip(batch, fnames):
+        res = dict(res)
         res["filename"] = fname
         results.append(res)
 
@@ -226,9 +280,13 @@ async def predict_summary(files: List[UploadFile] = File(...)):
     if not pairs:
         raise HTTPException(400, "No valid images were found.")
 
+    pil_images = [p for p, _ in pairs]
+    fnames     = [f for _, f in pairs]
+    batch      = _run_batch_predict(pil_images)
+
     results = []
-    for pil, fname in pairs:
-        res = _predict_image(pil)
+    for res, fname in zip(batch, fnames):
+        res = dict(res)
         res["filename"] = fname
         results.append(res)
 
@@ -251,17 +309,9 @@ async def explain(file: UploadFile = File(...)):
     except Exception:
         raise HTTPException(400, f"Cannot open file: {file.filename}")
 
-    pred = _predict_image(pil)
-    expl = explain_image(
-        pil_img         = pil,
-        model           = _model,
-        transform       = _transform,
-        class_names     = _class_names,
-        predicted_class = pred["predicted_class"],
-        confidence      = pred["confidence"],
-        device          = DEVICE,
-    )
-
+    out   = _run_explain(pil)
+    pred  = out["pred"]
+    expl  = out["expl"]
     stats = cam_statistics(expl["grayscale_cam"])
 
     return JSONResponse({
@@ -292,16 +342,9 @@ async def explain_stats(file: UploadFile = File(...)):
     except Exception:
         raise HTTPException(400, f"Cannot open file: {file.filename}")
 
-    pred = _predict_image(pil)
-    expl = explain_image(
-        pil_img         = pil,
-        model           = _model,
-        transform       = _transform,
-        class_names     = _class_names,
-        predicted_class = pred["predicted_class"],
-        confidence      = pred["confidence"],
-        device          = DEVICE,
-    )
+    out   = _run_explain(pil)
+    pred  = out["pred"]
+    expl  = out["expl"]
     stats = cam_statistics(expl["grayscale_cam"])
 
     return JSONResponse({
@@ -326,3 +369,9 @@ def ui():
     if not html_path.exists():
         return HTMLResponse("<h1>index.html not found</h1>", status_code=404)
     return FileResponse(str(html_path))
+
+
+# Unconditional (not gated behind `if __name__ == "__main__"`) so this also
+# works under `gradio app.py` hot-reload, matching standard Gradio app.py
+# convention — and it's what Hugging Face Spaces' Gradio SDK runs directly.
+app.launch()
