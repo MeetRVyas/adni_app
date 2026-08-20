@@ -39,6 +39,7 @@ COPY --chown=user main.py index.html ./
 COPY --chown=user package/config.py \
                   package/visualization.py \
                   package/explainability.py \
+                  package/ood_guard.py \
                   ./package/
 
 # Ensure package is recognized as a Python module

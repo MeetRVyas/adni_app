@@ -22,6 +22,7 @@ from gradio import Server
 
 from package.explainability import explain_image
 from package.visualization import cam_statistics, batch_summary
+from package.ood_guard import load_ood_guard, check_images, is_enabled as ood_guard_enabled
 from package.config import (
     MODEL_NAME, ROOT, SAVE_DIR, WEIGHTS_PATH,
     CLASS_NAMES_PATH, CLASS_WEIGHTS_PATH,
@@ -95,6 +96,11 @@ def load_model():
 # report True), so this is the standard idiom, not a lazy-load pattern.
 load_model()
 
+# Same eager-load idiom for the OOD guard. Unlike load_model(), a missing
+# calibration artifact doesn't crash the app — it disables the gate and
+# predictions run without it (see package/ood_guard.py's load_ood_guard).
+load_ood_guard()
+
 
 # ─── Inference helpers ───────────────────────────────────────────────────────
 def _get_predictions(logits: torch.Tensor) -> np.ndarray:
@@ -105,6 +111,21 @@ def _get_predictions(logits: torch.Tensor) -> np.ndarray:
 
 def _pil_to_tensor(pil_img: Image.Image) -> torch.Tensor:
     return _transform(pil_img.convert("RGB")).unsqueeze(0)
+
+
+def _ood_check_duration(pil_images: List[Image.Image]) -> int:
+    return min(60, max(10, 5 + len(pil_images)))
+
+
+@spaces.GPU(duration=_ood_check_duration)
+def _run_ood_check(pil_images: List[Image.Image]) -> List[dict]:
+    """
+    One GPU entry for the whole batch's CLIP forward pass, mirroring
+    _run_batch_predict's batching below — runs BEFORE the Swin classifier so
+    out-of-distribution inputs (non-MRI images) never reach it. No-op (every
+    image passes) if the OOD guard didn't load; see package/ood_guard.py.
+    """
+    return check_images(pil_images)
 
 
 def _predict_duration(pil_images: List[Image.Image]) -> int:
@@ -169,6 +190,48 @@ def _run_explain(pil_img: Image.Image) -> dict:
         device          = DEVICE,
     )
     return {"pred": pred, "expl": expl}
+
+
+def _ood_rejected_result(fname: str, ood: dict) -> dict:
+    return {
+        "filename":        fname,
+        "predicted_class": None,
+        "confidence":      None,
+        "probabilities":   None,
+        "ood_rejected":    True,
+        "ood_reason":      ood["reason"],
+        "ood_scores":      ood["scores"],
+    }
+
+
+def _run_gated_batch_predict(pil_images: List[Image.Image], fnames: List[str]) -> List[dict]:
+    """
+    Runs the OOD gate first, then the Swin classifier only on the images
+    that pass it. High-confidence OOD images get an ood_rejected result
+    instead of a forced (and potentially confidently wrong) classification;
+    images that only trip the softer "warn" tier are still classified, with
+    an ood_warning attached alongside the prediction.
+    """
+    ood = _run_ood_check(pil_images)
+
+    keep_idx = [i for i, o in enumerate(ood) if not o["is_rejected"]]
+    classified = {}
+    if keep_idx:
+        batch = _run_batch_predict([pil_images[i] for i in keep_idx])
+        classified = dict(zip(keep_idx, batch))
+
+    results = []
+    for i, fname in enumerate(fnames):
+        o = ood[i]
+        if o["is_rejected"]:
+            results.append(_ood_rejected_result(fname, o))
+        else:
+            res = dict(classified[i])
+            res["filename"]     = fname
+            res["ood_rejected"] = False
+            res["ood_warning"]  = {"reason": o["reason"], "scores": o["scores"]} if o["verdict"] == "warn" else None
+            results.append(res)
+    return results
 
 
 async def _collect_images(files: List[UploadFile]) -> List[Tuple[Image.Image, str]]:
@@ -248,22 +311,26 @@ async def predict(
 
     pil_images = [p for p, _ in pairs]
     fnames     = [f for _, f in pairs]
-    batch      = _run_batch_predict(pil_images)
-
-    results = []
-    for res, fname in zip(batch, fnames):
-        res = dict(res)
-        res["filename"] = fname
-        results.append(res)
+    results    = _run_gated_batch_predict(pil_images, fnames)
 
     if mode == "per_image":
         return JSONResponse({"mode": "per_image", "results": results})
-    elif mode == "max_probability":
-        agg = _aggregate_max_prob(results)
-    else:
-        agg = _aggregate_mean_prob(results)
 
-    agg["per_image"] = results
+    classified = [r for r in results if not r["ood_rejected"]]
+    if not classified:
+        return JSONResponse({
+            "mode":              mode,
+            "predicted_class":   None,
+            "num_images":        len(results),
+            "ood_rejected_count": len(results),
+            "per_image":         results,
+            "note":              "Every uploaded image was rejected by the OOD guardrail — none appear to be brain MRIs.",
+        })
+
+    agg = _aggregate_max_prob(classified) if mode == "max_probability" else _aggregate_mean_prob(classified)
+    agg["num_images"]         = len(results)
+    agg["ood_rejected_count"] = len(results) - len(classified)
+    agg["per_image"]          = results
     return JSONResponse(agg)
 
 
@@ -282,16 +349,13 @@ async def predict_summary(files: List[UploadFile] = File(...)):
 
     pil_images = [p for p, _ in pairs]
     fnames     = [f for _, f in pairs]
-    batch      = _run_batch_predict(pil_images)
+    results    = _run_gated_batch_predict(pil_images, fnames)
 
-    results = []
-    for res, fname in zip(batch, fnames):
-        res = dict(res)
-        res["filename"] = fname
-        results.append(res)
-
-    summary = batch_summary(results)
-    summary["per_image"] = results
+    classified = [r for r in results if not r["ood_rejected"]]
+    summary = batch_summary(classified)   # {} if every image was OOD-rejected
+    summary["num_images"]         = len(results)
+    summary["ood_rejected_count"] = len(results) - len(classified)
+    summary["per_image"]          = results
     return JSONResponse(summary)
 
 
@@ -299,6 +363,9 @@ async def predict_summary(files: List[UploadFile] = File(...)):
 async def explain(file: UploadFile = File(...)):
     """
     Run GradCAM + natural-language explanation on a single image.
+    High-confidence OOD images are rejected before GradCAM ever runs, since
+    generating a clinical-sounding explanation for a non-MRI input would be
+    actively misleading.
     """
     if _model is None:
         raise HTTPException(503, "Model not loaded.")
@@ -308,6 +375,15 @@ async def explain(file: UploadFile = File(...)):
         pil = Image.open(io.BytesIO(raw)).convert("RGB")
     except Exception:
         raise HTTPException(400, f"Cannot open file: {file.filename}")
+
+    ood = _run_ood_check([pil])[0]
+    if ood["is_rejected"]:
+        raise HTTPException(422, detail={
+            "filename":     file.filename,
+            "ood_rejected": True,
+            "ood_reason":   ood["reason"],
+            "ood_scores":   ood["scores"],
+        })
 
     out   = _run_explain(pil)
     pred  = out["pred"]
@@ -324,6 +400,7 @@ async def explain(file: UploadFile = File(...)):
         "text":            expl["text"],
         "region":          expl["region"],
         "cam_stats":       stats,
+        "ood_warning":     {"reason": ood["reason"], "scores": ood["scores"]} if ood["verdict"] == "warn" else None,
     })
 
 
@@ -342,6 +419,15 @@ async def explain_stats(file: UploadFile = File(...)):
     except Exception:
         raise HTTPException(400, f"Cannot open file: {file.filename}")
 
+    ood = _run_ood_check([pil])[0]
+    if ood["is_rejected"]:
+        raise HTTPException(422, detail={
+            "filename":     file.filename,
+            "ood_rejected": True,
+            "ood_reason":   ood["reason"],
+            "ood_scores":   ood["scores"],
+        })
+
     out   = _run_explain(pil)
     pred  = out["pred"]
     expl  = out["expl"]
@@ -354,13 +440,35 @@ async def explain_stats(file: UploadFile = File(...)):
         "probabilities":   pred["probabilities"],
         "region":          expl["region"],
         "cam_stats":       stats,
+        "ood_warning":     {"reason": ood["reason"], "scores": ood["scores"]} if ood["verdict"] == "warn" else None,
     })
+
+
+@app.post("/ood_check")
+async def ood_check(file: UploadFile = File(...)):
+    """
+    Run just the OOD guardrail on a single image, without the Swin
+    classifier — useful for testing/monitoring the gate on its own.
+    """
+    raw = await file.read()
+    try:
+        pil = Image.open(io.BytesIO(raw)).convert("RGB")
+    except Exception:
+        raise HTTPException(400, f"Cannot open file: {file.filename}")
+
+    ood = _run_ood_check([pil])[0]
+    return JSONResponse({"filename": file.filename, **ood})
 
 
 # Routes
 @app.get("/health")
 def health():
-    return {"status": "ok", "model_loaded": _model is not None, "device": DEVICE}
+    return {
+        "status":           "ok",
+        "model_loaded":     _model is not None,
+        "ood_guard_loaded": ood_guard_enabled(),
+        "device":           DEVICE,
+    }
 
 
 @app.get("/", response_class=HTMLResponse)
