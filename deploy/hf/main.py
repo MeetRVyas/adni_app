@@ -19,6 +19,7 @@ from fastapi import File, UploadFile, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from huggingface_hub import hf_hub_download
 from gradio import Server
+from gradio.data_classes import FileData
 
 from package.explainability import explain_image
 from package.visualization import cam_statistics, batch_summary
@@ -28,6 +29,11 @@ from package.config import (
     CLASS_NAMES_PATH, CLASS_WEIGHTS_PATH,
     IMG_SIZE, DEVICE,
 )
+
+print("TORCH:", torch.__version__)
+print("TORCH CUDA:", torch.version.cuda)
+print("CUDA AVAILABLE:", torch.cuda.is_available())
+print("CUDA DEVICE COUNT:", torch.cuda.device_count())
 
 
 # ─── App ───────────────────────────────────────────────────────────────────
@@ -117,7 +123,10 @@ def _ood_check_duration(pil_images: List[Image.Image]) -> int:
     return min(60, max(10, 5 + len(pil_images)))
 
 
-@spaces.GPU(duration=_ood_check_duration)
+def _ood_check_duration_gated(pil_images: List[Image.Image], *args, **kwargs) -> int:
+    return min(60, max(10, 5 + len(pil_images)))
+
+
 def _run_ood_check(pil_images: List[Image.Image]) -> List[dict]:
     """
     One GPU entry for the whole batch's CLIP forward pass, mirroring
@@ -135,7 +144,7 @@ def _predict_duration(pil_images: List[Image.Image]) -> int:
     return min(120, max(15, 5 + 2 * len(pil_images)))
 
 
-@spaces.GPU(duration=_predict_duration)
+# @spaces.GPU(duration=_predict_duration)
 def _run_batch_predict(pil_images: List[Image.Image]) -> List[dict]:
     """
     Runs the whole batch through the model in a single GPU entry (one fork,
@@ -159,7 +168,7 @@ def _run_batch_predict(pil_images: List[Image.Image]) -> List[dict]:
     return results
 
 
-@spaces.GPU(duration=30)
+# @spaces.GPU(duration=30)
 def _run_explain(pil_img: Image.Image) -> dict:
     """
     One GPU entry covering both the classification forward pass and the
@@ -204,6 +213,7 @@ def _ood_rejected_result(fname: str, ood: dict) -> dict:
     }
 
 
+# @spaces.GPU(duration=_ood_check_duration_gated)
 def _run_gated_batch_predict(pil_images: List[Image.Image], fnames: List[str]) -> List[dict]:
     """
     Runs the OOD gate first, then the Swin classifier only on the images
@@ -213,7 +223,7 @@ def _run_gated_batch_predict(pil_images: List[Image.Image], fnames: List[str]) -
     an ood_warning attached alongside the prediction.
     """
     ood = _run_ood_check(pil_images)
-
+    
     keep_idx = [i for i, o in enumerate(ood) if not o["is_rejected"]]
     classified = {}
     if keep_idx:
@@ -297,45 +307,57 @@ def classes():
     return {"classes": _class_names}
 
 
-@app.post("/predict")
-async def predict(
-    files: List[UploadFile] = File(...),
-    mode: str = Form("avg_probability"),
+@app.api(name="predict")
+def predict(
+    files: List[FileData],
+    mode: str = "avg_probability",
 ):
     if _model is None:
         raise HTTPException(503, "Model not loaded.")
 
-    pairs = await _collect_images(files)
-    if not pairs:
+    pil_images: List[Image.Image] = []
+    fnames: List[str] = []
+
+    for file_data in files:
+        path = file_data.path if hasattr(file_data, "path") else file_data.get("path")
+        if not path:
+            raise HTTPException(400, "Uploaded file has no local path.")
+        try:
+            pil_images.append(Image.open(path).convert("RGB"))
+            fnames.append(os.path.basename(path))
+        except Exception as exc:
+            raise HTTPException(400, f"Cannot open file: {path}: {exc}")
+
+    if not pil_images:
         raise HTTPException(400, "No valid images were found in the uploaded files.")
 
-    pil_images = [p for p, _ in pairs]
-    fnames     = [f for _, f in pairs]
-    results    = _run_gated_batch_predict(pil_images, fnames)
+    results = _run_gated_batch_predict(pil_images, fnames)
 
     if mode == "per_image":
-        return JSONResponse({"mode": "per_image", "results": results})
+        return {"mode": "per_image", "results": results}
 
     classified = [r for r in results if not r["ood_rejected"]]
     if not classified:
-        return JSONResponse({
-            "mode":              mode,
-            "predicted_class":   None,
-            "num_images":        len(results),
+        return {
+            "mode": mode,
+            "predicted_class": None,
+            "num_images": len(results),
             "ood_rejected_count": len(results),
-            "per_image":         results,
-            "note":              "Every uploaded image was rejected by the OOD guardrail — none appear to be brain MRIs.",
-        })
+            "per_image": results,
+            "note": "Every uploaded image was rejected by the OOD guardrail — none appear to be brain MRIs.",
+        }
 
-    agg = _aggregate_max_prob(classified) if mode == "max_probability" else _aggregate_mean_prob(classified)
-    agg["num_images"]         = len(results)
+    agg = (_aggregate_max_prob(classified)
+           if mode == "max_probability"
+           else _aggregate_mean_prob(classified))
+    agg["num_images"] = len(results)
     agg["ood_rejected_count"] = len(results) - len(classified)
-    agg["per_image"]          = results
-    return JSONResponse(agg)
+    agg["per_image"] = results
+    return agg
 
 
-@app.post("/predict/summary")
-async def predict_summary(files: List[UploadFile] = File(...)):
+@app.api(name="predict_summary")
+def predict_summary(files: List[FileData]):
     """
     Run prediction on all images and return batch-level statistics:
     class distribution, mean/std/max probabilities, confidence histogram.
@@ -343,12 +365,19 @@ async def predict_summary(files: List[UploadFile] = File(...)):
     if _model is None:
         raise HTTPException(503, "Model not loaded.")
 
-    pairs = await _collect_images(files)
-    if not pairs:
+    pil_images = []
+    fnames = []
+    for file_data in files:
+        path = file_data.path if hasattr(file_data, "path") else file_data.get("path")
+        if not path:
+            raise HTTPException(400, "Uploaded file has no local path.")
+        try:
+            pil_images.append(Image.open(path).convert("RGB"))
+            fnames.append(os.path.basename(path))
+        except Exception as exc:
+            raise HTTPException(400, f"Cannot open file: {path}: {exc}")
+    if not pil_images:
         raise HTTPException(400, "No valid images were found.")
-
-    pil_images = [p for p, _ in pairs]
-    fnames     = [f for _, f in pairs]
     results    = _run_gated_batch_predict(pil_images, fnames)
 
     classified = [r for r in results if not r["ood_rejected"]]
@@ -359,8 +388,8 @@ async def predict_summary(files: List[UploadFile] = File(...)):
     return JSONResponse(summary)
 
 
-@app.post("/explain")
-async def explain(file: UploadFile = File(...)):
+@app.api(name="explain")
+def explain(file: FileData):
     """
     Run GradCAM + natural-language explanation on a single image.
     High-confidence OOD images are rejected before GradCAM ever runs, since
@@ -370,16 +399,19 @@ async def explain(file: UploadFile = File(...)):
     if _model is None:
         raise HTTPException(503, "Model not loaded.")
 
-    raw = await file.read()
+    path = file.path if hasattr(file, "path") else file.get("path")
+    filename = os.path.basename(path) if path else "unknown"
+    if not path:
+        raise HTTPException(400, "Uploaded file has no local path.")
     try:
-        pil = Image.open(io.BytesIO(raw)).convert("RGB")
-    except Exception:
-        raise HTTPException(400, f"Cannot open file: {file.filename}")
+        pil = Image.open(path).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(400, f"Cannot open file: {filename}: {exc}")
 
     ood = _run_ood_check([pil])[0]
     if ood["is_rejected"]:
         raise HTTPException(422, detail={
-            "filename":     file.filename,
+            "filename":     filename,
             "ood_rejected": True,
             "ood_reason":   ood["reason"],
             "ood_scores":   ood["scores"],
@@ -391,7 +423,7 @@ async def explain(file: UploadFile = File(...)):
     stats = cam_statistics(expl["grayscale_cam"])
 
     return JSONResponse({
-        "filename":        file.filename,
+        "filename":        filename,
         "predicted_class": pred["predicted_class"],
         "confidence":      pred["confidence"],
         "probabilities":   pred["probabilities"],
@@ -404,8 +436,8 @@ async def explain(file: UploadFile = File(...)):
     })
 
 
-@app.post("/explain/stats")
-async def explain_stats(file: UploadFile = File(...)):
+@app.api(name="explain_stats")
+def explain_stats(file: FileData):
     """
     Return GradCAM spatial statistics without the overlay images —
     useful for lightweight analytics dashboards scanning many files.
@@ -413,16 +445,19 @@ async def explain_stats(file: UploadFile = File(...)):
     if _model is None:
         raise HTTPException(503, "Model not loaded.")
 
-    raw = await file.read()
+    path = file.path if hasattr(file, "path") else file.get("path")
+    filename = os.path.basename(path) if path else "unknown"
+    if not path:
+        raise HTTPException(400, "Uploaded file has no local path.")
     try:
-        pil = Image.open(io.BytesIO(raw)).convert("RGB")
-    except Exception:
-        raise HTTPException(400, f"Cannot open file: {file.filename}")
+        pil = Image.open(path).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(400, f"Cannot open file: {filename}: {exc}")
 
     ood = _run_ood_check([pil])[0]
     if ood["is_rejected"]:
         raise HTTPException(422, detail={
-            "filename":     file.filename,
+            "filename":     filename,
             "ood_rejected": True,
             "ood_reason":   ood["reason"],
             "ood_scores":   ood["scores"],
@@ -434,7 +469,7 @@ async def explain_stats(file: UploadFile = File(...)):
     stats = cam_statistics(expl["grayscale_cam"])
 
     return JSONResponse({
-        "filename":        file.filename,
+        "filename":        filename,
         "predicted_class": pred["predicted_class"],
         "confidence":      pred["confidence"],
         "probabilities":   pred["probabilities"],
@@ -444,20 +479,23 @@ async def explain_stats(file: UploadFile = File(...)):
     })
 
 
-@app.post("/ood_check")
-async def ood_check(file: UploadFile = File(...)):
+@app.api(name="ood_check")
+def ood_check(file: FileData):
     """
     Run just the OOD guardrail on a single image, without the Swin
     classifier — useful for testing/monitoring the gate on its own.
     """
-    raw = await file.read()
+    path = file.path if hasattr(file, "path") else file.get("path")
+    filename = os.path.basename(path) if path else "unknown"
+    if not path:
+        raise HTTPException(400, "Uploaded file has no local path.")
     try:
-        pil = Image.open(io.BytesIO(raw)).convert("RGB")
-    except Exception:
-        raise HTTPException(400, f"Cannot open file: {file.filename}")
+        pil = Image.open(path).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(400, f"Cannot open file: {filename}: {exc}")
 
     ood = _run_ood_check([pil])[0]
-    return JSONResponse({"filename": file.filename, **ood})
+    return {"filename": filename, **ood}
 
 
 # Routes

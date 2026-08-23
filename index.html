@@ -35,6 +35,7 @@
   --risk-low-fg:   #c9a84c; --risk-low-bg:   rgba(201,168,76,.13);
   --risk-mid-fg:   #c97c3a; --risk-mid-bg:   rgba(201,124,58,.13);
   --risk-high-fg:  #c0392b; --risk-high-bg:  rgba(192,57,43,.13);
+  --risk-ood-fg:   #8a8fc7; --risk-ood-bg:   rgba(138,143,199,.13);
   --modal-bg:   rgba(0,0,0,0.82);
 }
 
@@ -56,6 +57,7 @@
   --risk-low-fg:   #9a7020; --risk-low-bg:   rgba(154,112,32,.1);
   --risk-mid-fg:   #9a4e18; --risk-mid-bg:   rgba(154,78,24,.1);
   --risk-high-fg:  #8b2615; --risk-high-bg:  rgba(139,38,21,.1);
+  --risk-ood-fg:   #4c4f8b; --risk-ood-bg:   rgba(76,79,139,.1);
   --modal-bg:   rgba(44,31,20,0.72);
 }
 
@@ -420,6 +422,7 @@ body {
 .result-class    { font-size: 12px; color: var(--text); }
 .result-conf     { font-size: 11px; color: var(--text-3); text-align: right; }
 .result-class-wrap { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.result-ood-reason { font-size: 11px; color: var(--text-3); text-align: right; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .btn-explain {
   padding: 3px 9px;
@@ -656,6 +659,13 @@ canvas.scatter-canvas {
   border: 1px solid var(--border);
 }
 .file-prediction.predicted { color: var(--text); border-color: var(--border2); }
+.file-prediction.ood { color: var(--risk-ood-fg); background: var(--risk-ood-bg); border-color: var(--risk-ood-fg); }
+.file-warn-flag {
+  font-size: 9px;
+  margin-left: 4px;
+  color: var(--risk-mid-fg);
+  vertical-align: middle;
+}
 .file-explain-btn {
   margin-top: 4px;
   padding: 2px 8px;
@@ -705,7 +715,34 @@ canvas.scatter-canvas {
 .risk-low  { color: var(--risk-low-fg);  background: var(--risk-low-bg);  border-color: var(--risk-low-fg);  }
 .risk-mid  { color: var(--risk-mid-fg);  background: var(--risk-mid-bg);  border-color: var(--risk-mid-fg);  }
 .risk-high { color: var(--risk-high-fg); background: var(--risk-high-bg); border-color: var(--risk-high-fg); }
+.risk-ood  { color: var(--risk-ood-fg);  background: var(--risk-ood-bg);  border-color: var(--risk-ood-fg);  }
 .bar-fill { background: var(--bar-color, var(--text)); }
+
+/* OOD warning banner (inside explain modal) */
+.ood-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--risk-mid-fg);
+  background: var(--risk-mid-bg);
+  border-radius: 6px;
+  color: var(--risk-mid-fg);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.ood-warning-banner .ood-warning-icon { flex-shrink: 0; font-size: 13px; line-height: 1.4; }
+.ood-rejected-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 24px;
+  text-align: center;
+}
+.ood-rejected-panel .ood-rejected-title { font-family: var(--serif); font-size: 18px; color: var(--risk-ood-fg); }
+.ood-rejected-panel .ood-rejected-reason { font-size: 11px; color: var(--text-3); max-width: 460px; line-height: 1.6; }
 
 @media (max-width: 680px) {
   .sidebar.open { width: 100%; position: fixed; inset: 52px 0 0 0; z-index: 50; }
@@ -990,6 +1027,14 @@ canvas.scatter-canvas {
 }
 .summary-kpi-value { font-family: var(--serif); font-size: 24px; color: var(--text); line-height: 1; }
 .summary-kpi-label { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); }
+.summary-ood-note {
+  font-size: 10px;
+  color: var(--risk-ood-fg);
+  padding: 8px 12px;
+  border: 1px solid var(--risk-ood-fg);
+  background: var(--risk-ood-bg);
+  border-radius: 6px;
+}
 
 /* Two-column layout for charts */
 .summary-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -1066,9 +1111,109 @@ canvas.scatter-canvas {
   color: var(--text-3);
   font-size: 11px;
 }
+/* ─────────────────────────────────────────────
+   BOOT LOADER — shown until the model server reports ready
+───────────────────────────────────────────── */
+#boot-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.5s var(--ease-in-out), visibility 0.5s var(--ease-in-out);
+}
+#boot-loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.boot-logo { display: flex; align-items: baseline; gap: 12px; margin-bottom: 36px; }
+.boot-logo-name { font-family: var(--serif); font-size: 34px; letter-spacing: -0.02em; color: var(--text); }
+.boot-logo-tag  { font-size: 11px; color: var(--text-3); letter-spacing: 0.14em; text-transform: uppercase; }
+
+.boot-scan {
+  width: 68px; height: 68px;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.boot-scan-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 8.5px 8.5px;
+  opacity: 0.6;
+}
+.boot-scan-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  top: -6%;
+  background: var(--text-2);
+  box-shadow: 0 0 8px 1px var(--text-2);
+  animation: bootscan 1.9s var(--ease-in-out) infinite;
+}
+@keyframes bootscan { 0% { top: -6%; } 50% { top: 100%; } 100% { top: -6%; } }
+
+.boot-status {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.boot-status-row { display: flex; align-items: center; gap: 8px; }
+.boot-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--text-3);
+  flex-shrink: 0;
+  animation: bootpulse 1.4s ease-in-out infinite;
+}
+@keyframes bootpulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+.boot-skip {
+  color: var(--text-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-size: 10px;
+  background: none;
+  border: none;
+  font-family: var(--mono);
+}
+.boot-skip:hover { color: var(--text); }
+
 </style>
 </head>
 <body>
+<div id="boot-loader">
+  <div class="boot-logo">
+    <span class="boot-logo-name">NeuroScan</span>
+    <span class="boot-logo-tag">Alzheimer MRI</span>
+  </div>
+  <div class="boot-scan">
+    <div class="boot-scan-grid"></div>
+    <div class="boot-scan-line"></div>
+  </div>
+  <div class="boot-status" id="boot-status">
+    <div class="boot-status-row">
+      <span class="boot-dot"></span>
+      <span id="boot-status-text">Connecting to inference server…</span>
+    </div>
+  </div>
+</div>
+
 <div class="app">
 
   <!-- ── Topbar ─────────────────────────────────────────────────────── -->
@@ -1247,7 +1392,12 @@ canvas.scatter-canvas {
   </div>
 </div>
 
-<script>
+<script type="module">
+import { Client, handle_file } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
+
+// Connect to gradio.Server so model requests use Gradio's queue/ZeroGPU path.
+const gradioClientPromise = Client.connect(window.location.origin);
+
 /* ═══════════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════════ */
@@ -1307,6 +1457,73 @@ const scatterCanvas   = document.getElementById('scatter-canvas');
 const scatterWrap     = document.getElementById('scatter-wrap');
 const scatterTooltip  = document.getElementById('scatter-tooltip');
 const scatterLegend   = document.getElementById('scatter-legend');
+
+/* ═══════════════════════════════════════════════
+   BOOT LOADER — poll /health until the model server is ready
+═══════════════════════════════════════════════ */
+const bootLoader      = document.getElementById('boot-loader');
+const bootStatus      = document.getElementById('boot-status');
+const bootStatusText  = document.getElementById('boot-status-text');
+
+const BOOT_SLOW_AFTER_MS = 20000;  // switch to a "still warming up" message
+const BOOT_SKIP_AFTER_MS = 45000;  // offer a manual way out of the loader
+const BOOT_POLL_INTERVAL_MS = 1500;
+
+const bootStartedAt = Date.now();
+let bootPollTimer   = null;
+let bootSkipShown   = false;
+
+function setBootStatus(msg) {
+  if (bootStatusText) bootStatusText.textContent = msg;
+}
+
+function showBootSkipLink() {
+  if (bootSkipShown || !bootStatus) return;
+  bootSkipShown = true;
+  const btn = document.createElement('button');
+  btn.className   = 'boot-skip';
+  btn.type        = 'button';
+  btn.textContent = 'Continue without waiting';
+  btn.addEventListener('click', hideBootLoader);
+  bootStatus.appendChild(btn);
+}
+
+function hideBootLoader() {
+  if (!bootLoader) return;
+  if (bootPollTimer) { clearInterval(bootPollTimer); bootPollTimer = null; }
+  bootLoader.classList.add('hidden');
+  setTimeout(() => { bootLoader.style.display = 'none'; }, 550);
+}
+
+async function pollHealth() {
+  const elapsed = Date.now() - bootStartedAt;
+
+  if (elapsed > BOOT_SKIP_AFTER_MS) showBootSkipLink();
+
+  try {
+    const res = await fetch('/health');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (data.model_loaded) {
+      setBootStatus(data.ood_guard_loaded ? 'Ready.' : 'Ready — OOD guardrail unavailable.');
+      hideBootLoader();
+      return;
+    }
+    setBootStatus(elapsed > BOOT_SLOW_AFTER_MS
+      ? 'Still warming up — first load can take a minute…'
+      : 'Loading Swin Transformer classifier…');
+  } catch (err) {
+    setBootStatus(elapsed > BOOT_SLOW_AFTER_MS
+      ? 'Still warming up — first load can take a minute…'
+      : 'Connecting to inference server…');
+  }
+}
+
+if (bootLoader) {
+  pollHealth();
+  bootPollTimer = setInterval(pollHealth, BOOT_POLL_INTERVAL_MS);
+}
 
 /* ═══════════════════════════════════════════════
    THEME
@@ -1405,6 +1622,7 @@ function handleFiles(rawFiles) {
     id: ++fileCounter, file: f, batchId,
     name: f.name, size: f.size, type: f.type || 'unknown',
     prediction: null, explanation: null, camStats: null,
+    oodRejected: false, oodReason: null, oodScores: null, oodWarning: null,
   }));
 
   batches.push({ id: batchId, name: `Batch ${batchId}`, files, timestamp });
@@ -1547,11 +1765,17 @@ function renderFileItem(f) {
   const pred    = f.prediction;
   const r       = pred ? riskOf(pred.class) : null;
 
-  const predHtml = pred
-    ? `<span class="file-prediction predicted" style="color:${riskBarColor(pred.class)};border-color:currentColor;background:var(--risk-${r.level}-bg)">${escHtml(pred.class)} · ${(pred.confidence*100).toFixed(1)}%</span>`
-    : `<span class="file-prediction">Not predicted</span>`;
+  let predHtml;
+  if (f.oodRejected) {
+    predHtml = `<span class="file-prediction ood" title="${escHtml(f.oodReason || '')}">Not a brain MRI</span>`;
+  } else if (pred) {
+    const warnHtml = f.oodWarning ? `<span class="file-warn-flag" title="${escHtml(f.oodWarning.reason || '')}">⚠</span>` : '';
+    predHtml = `<span class="file-prediction predicted" style="color:${riskBarColor(pred.class)};border-color:currentColor;background:var(--risk-${r.level}-bg)">${escHtml(pred.class)} · ${(pred.confidence*100).toFixed(1)}%</span>${warnHtml}`;
+  } else {
+    predHtml = `<span class="file-prediction">Not predicted</span>`;
+  }
 
-  const explainHtml = pred
+  const explainHtml = (pred && !f.oodRejected)
     ? `<button class="file-explain-btn ${f.explanation ? 'has-cam' : ''}" data-file-explain="${f.id}">
          <span class="explain-dot"></span>
          ${f.explanation ? 'View explanation' : 'Explain'}
@@ -1620,7 +1844,7 @@ function handleSidebarClick(e) {
    PREDICT
 ═══════════════════════════════════════════════ */
 predictBtn.addEventListener('click', async () => {
-  const unpredicted = allFiles().filter(f => f.prediction === null);
+  const unpredicted = allFiles().filter(f => f.prediction === null && !f.oodRejected);
   if (!unpredicted.length) {
     showError('All images already have predictions. Upload new images to run again.');
     return;
@@ -1629,44 +1853,46 @@ predictBtn.addEventListener('click', async () => {
   setLoading(true);
   showError('');
 
-  const fd = new FormData();
-  unpredicted.forEach(f => fd.append('files', f.file));
-  fd.append('mode', mode);
-
   try {
-    const res = await fetch('/predict', { method: 'POST', body: fd });
-    if (!res.ok) {
-      let msg = `HTTP ${res.status}`;
-      try { msg = (await res.json()).detail || msg; } catch {}
-      throw new Error(msg);
-    }
-    const data = await res.json();
+    const gradio = await gradioClientPromise;
+    const result = await gradio.predict('/predict', {
+      files: unpredicted.map(f => handle_file(f.file)),
+      mode,
+    });
+    const data = result?.data?.[0] ?? result?.data ?? result;
     applyPredictions(data, mode, unpredicted);
     renderResults(data, mode, unpredicted);
     rebuildScatter();
 
     if (autoExplain) {
-      unpredicted.forEach(fe => { if (fe.prediction) fetchExplanation(fe); });
+      unpredicted.forEach(fe => { if (fe.prediction && !fe.oodRejected) fetchExplanation(fe); });
     }
   } catch(e) {
-    showError(e.message);
+    showError(gradioErrorMessage(e));
   } finally {
     setLoading(false);
   }
 });
 
 function applyPredictions(data, mode, files) {
-  if (mode === 'per_image') {
-    data.results.forEach(r => {
-      const fe = files.find(f => f.name === r.filename);
-      if (fe) fe.prediction = { class: r.predicted_class, confidence: r.confidence, probabilities: r.probabilities };
-    });
-  } else {
-    (data.per_image || []).forEach(r => {
-      const fe = files.find(f => f.name === r.filename);
-      if (fe) fe.prediction = { class: r.predicted_class, confidence: r.confidence, probabilities: r.probabilities };
-    });
-  }
+  const results = mode === 'per_image' ? data.results : (data.per_image || []);
+  results.forEach(r => {
+    const fe = files.find(f => f.name === r.filename);
+    if (!fe) return;
+    if (r.ood_rejected) {
+      fe.prediction  = null;
+      fe.oodRejected = true;
+      fe.oodReason   = r.ood_reason || null;
+      fe.oodScores   = r.ood_scores || null;
+      fe.oodWarning  = null;
+    } else {
+      fe.prediction  = { class: r.predicted_class, confidence: r.confidence, probabilities: r.probabilities };
+      fe.oodRejected = false;
+      fe.oodReason   = null;
+      fe.oodScores   = null;
+      fe.oodWarning  = r.ood_warning || null;
+    }
+  });
   updateStats(true);
   renderSidebar();
 }
@@ -1682,19 +1908,24 @@ function showError(msg) {
   errorBar.className   = msg ? 'error-bar visible' : 'error-bar';
 }
 
+function gradioErrorMessage(err) {
+  if (!err) return 'Gradio API request failed.';
+  if (typeof err === 'string') return err;
+  return err.message || err.detail || err.error || 'Gradio API request failed.';
+}
+
 /* ═══════════════════════════════════════════════
-   FETCH EXPLANATION  (/explain)
+   FETCH EXPLANATION  (Gradio API: /explain)
 ═══════════════════════════════════════════════ */
 async function fetchExplanation(fe) {
   if (fe.explanation) return fe.explanation;
 
-  const fd = new FormData();
-  fd.append('file', fe.file);
-
   try {
-    const res = await fetch('/explain', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const gradio = await gradioClientPromise;
+    const result = await gradio.predict('/explain', {
+      file: handle_file(fe.file),
+    });
+    const data = result?.data?.[0] ?? result?.data ?? result;
     if (fileById(fe.id)) {
       fe.explanation = {
         original_b64: data.original_b64,
@@ -1702,7 +1933,9 @@ async function fetchExplanation(fe) {
         text:         data.text,
         region:       data.region,
         cam_stats:    data.cam_stats,
+        ood_warning:  data.ood_warning || null,
       };
+      fe.oodWarning = data.ood_warning || null;
     }
     return fe.explanation;
   } catch(err) {
@@ -1715,9 +1948,29 @@ async function fetchExplanation(fe) {
    EXPLAIN MODAL (with CAM stats panel)
 ═══════════════════════════════════════════════ */
 async function openExplainModal(fe) {
-  if (!fe.prediction) return;
+  if (!fe.prediction && !fe.oodRejected) return;
 
-  modalFilename.textContent  = fe.name;
+  modalFilename.textContent = fe.name;
+
+  if (fe.oodRejected) {
+    modalClassText.textContent = 'Not a brain MRI';
+    modalChip.innerHTML   = '<span class="risk-chip risk-ood">Rejected</span>';
+    modalConf.textContent = '';
+    modalBody.innerHTML   = `
+      <div class="modal-loading">
+        <div class="modal-spinner"></div>
+        <span>Checking with the OOD guardrail…</span>
+      </div>`;
+    modalBackdrop.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+    modalBody.innerHTML = `
+      <div class="ood-rejected-panel">
+        <div class="ood-rejected-title">Not a brain MRI</div>
+        <p class="ood-rejected-reason">${escHtml(fe.oodReason || 'This image was rejected by the out-of-distribution guardrail before reaching the classifier, so no explanation is available.')}</p>
+      </div>`;
+    return;
+  }
+
   modalClassText.textContent = fe.prediction.class;
   modalChip.innerHTML        = riskChip(fe.prediction.class);
   modalConf.textContent      = `${(fe.prediction.confidence * 100).toFixed(1)}% confidence`;
@@ -1735,6 +1988,19 @@ async function openExplainModal(fe) {
   if (!fileById(fe.id)) { closeModal(); return; }
 
   if (!expl) {
+    if (fe.oodRejected) {
+      // The backend flagged it OOD on this /explain call even though /predict
+      // hadn't (e.g. explained without predicting first, or a later recheck).
+      renderSidebar();
+      modalClassText.textContent = 'Not a brain MRI';
+      modalConf.textContent = '';
+      modalBody.innerHTML = `
+        <div class="ood-rejected-panel">
+          <div class="ood-rejected-title">Not a brain MRI</div>
+          <p class="ood-rejected-reason">${escHtml(fe.oodReason || 'This image was rejected by the out-of-distribution guardrail.')}</p>
+        </div>`;
+      return;
+    }
     modalBody.innerHTML = `
       <div class="modal-loading" style="color:var(--danger)">
         <span>Failed to generate explanation. Please try again.</span>
@@ -1764,7 +2030,16 @@ async function openExplainModal(fe) {
     ? `<p class="modal-caption" style="background:var(--surface);padding:12px 16px;border-radius:6px;border:1px solid var(--border);color:var(--text-2);font-style:italic;">${escHtml(expl.text)}</p>`
     : '';
 
+  // OOD warning banner (image passed the gate but only barely)
+  const oodWarningHtml = expl.ood_warning
+    ? `<div class="ood-warning-banner">
+         <span class="ood-warning-icon">⚠</span>
+         <span>${escHtml(expl.ood_warning.reason || 'This image is a borderline match for a typical brain MRI. Review the prediction with extra caution.')}</span>
+       </div>`
+    : '';
+
   modalBody.innerHTML = `
+    ${oodWarningHtml}
     <div class="modal-panels">
       <div class="modal-panel">
         <div class="modal-panel-label">Original MRI</div>
@@ -1877,7 +2152,7 @@ modalBackdrop.addEventListener('click', e => { if (e.target === modalBackdrop) c
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeSummary(); } });
 
 /* ═══════════════════════════════════════════════
-   BATCH SUMMARY MODAL  (/predict/summary)
+   BATCH SUMMARY MODAL  (Gradio API: /predict_summary)
 ═══════════════════════════════════════════════ */
 summaryBtn.addEventListener('click', openSummaryModal);
 summaryClose.addEventListener('click', closeSummary);
@@ -1903,29 +2178,30 @@ async function openSummaryModal() {
     return;
   }
 
-  const fd = new FormData();
-  predictedFiles.forEach(fe => fd.append('files', fe.file));
-
   try {
-    const res = await fetch('/predict/summary', { method: 'POST', body: fd });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const gradio = await gradioClientPromise;
+    const result = await gradio.predict('/predict_summary', {
+      files: predictedFiles.map(fe => handle_file(fe.file)),
+    });
+    const data = result?.data?.[0] ?? result?.data ?? result;
     renderSummaryModal(data);
   } catch(err) {
-    summaryBodyEl.innerHTML = `<div class="summary-loading" style="color:var(--danger)"><span>Failed: ${escHtml(err.message)}</span></div>`;
+    summaryBodyEl.innerHTML = `<div class="summary-loading" style="color:var(--danger)"><span>Failed: ${escHtml(gradioErrorMessage(err))}</span></div>`;
   }
 }
 
 function renderSummaryModal(data) {
   /*
-    Expected shape from /predict/summary (via batch_summary helper):
+    Expected shape from Gradio API /predict_summary (via batch_summary helper), plus
+    ood_rejected_count added by the OOD guardrail:
     {
-      num_images, class_distribution, mean_probabilities,
+      num_images, ood_rejected_count, class_distribution, mean_probabilities,
       std_probabilities, max_probabilities, dominant_class,
       mean_confidence, confidence_hist, per_image
     }
   */
   const numImages       = data.num_images       || 0;
+  const oodRejectedCount = data.ood_rejected_count || 0;
   const dominantClass   = data.dominant_class   || '—';
   const meanConf        = data.mean_confidence  != null ? (data.mean_confidence * 100).toFixed(1) + '%' : '—';
   const classDist       = data.class_distribution || {};
@@ -1934,8 +2210,11 @@ function renderSummaryModal(data) {
   const maxProbs        = data.max_probabilities   || {};
   const confHist        = data.confidence_hist;   // array of bin counts or {bins, counts}
 
-  const r = riskOf(dominantClass);
   const dominantClasses = Object.keys(classDist);
+
+  const oodNoteHtml = oodRejectedCount > 0
+    ? `<div class="summary-ood-note">${oodRejectedCount} of ${numImages} uploaded image${oodRejectedCount!==1?'s were':' was'} rejected by the OOD guardrail (not brain MRIs) and excluded from these statistics.</div>`
+    : '';
 
   // KPIs
   const kpiHtml = `
@@ -1968,6 +2247,7 @@ function renderSummaryModal(data) {
   const probTableHtml = buildProbTableHtml(meanProbs, stdProbs, maxProbs);
 
   summaryBodyEl.innerHTML = `
+    ${oodNoteHtml}
     ${kpiHtml}
     <div class="summary-charts">
       <div class="summary-card">
@@ -2043,11 +2323,12 @@ function buildHistogramHtml(confHist, perImage) {
       bins   = counts.map((_, i) => i / counts.length);
     }
   } else if (perImage && perImage.length) {
-    // Build our own 10-bin histogram
+    // Build our own 10-bin histogram (skip OOD-rejected entries — no confidence)
     const NUM_BINS = 10;
     counts = new Array(NUM_BINS).fill(0);
     bins   = Array.from({length: NUM_BINS}, (_, i) => i / NUM_BINS);
     perImage.forEach(item => {
+      if (item.ood_rejected || item.confidence == null) return;
       const c = item.confidence || 0;
       const idx = Math.min(Math.floor(c * NUM_BINS), NUM_BINS - 1);
       counts[idx]++;
@@ -2281,10 +2562,21 @@ function renderResults(data, mode, files) {
   resultsBody.innerHTML    = '';
   summaryBtn.style.display = '';
 
+  const rejectedCount = data.ood_rejected_count || 0;
+
   if (mode === 'per_image') {
     resultsClass.textContent = 'Per-image results';
-    resultsMeta.textContent  = `${data.results.length} image${data.results.length!==1?'s':''}`;
+    resultsMeta.textContent  = `${data.results.length} image${data.results.length!==1?'s':''}` +
+      (rejectedCount ? ` · ${rejectedCount} not a brain MRI` : '');
     renderPerImage(data.results, files);
+    return;
+  }
+
+  if (!data.predicted_class) {
+    // Every uploaded image was OOD-rejected — nothing to aggregate.
+    resultsClass.textContent = 'No valid brain MRI images';
+    resultsMeta.textContent  = data.note || `${data.num_images} image${data.num_images!==1?'s':''} · all rejected by the OOD guardrail`;
+    renderPerImage(data.per_image || [], files);
     return;
   }
 
@@ -2292,7 +2584,8 @@ function renderResults(data, mode, files) {
   const label = mode === 'max_probability' ? 'max probability' : 'mean probability';
 
   resultsClass.innerHTML  = escHtml(data.predicted_class) + ' ' + riskChip(data.predicted_class, false);
-  resultsMeta.textContent = `${data.num_images} image${data.num_images!==1?'s':''} · ${label}`;
+  resultsMeta.textContent = `${data.num_images} image${data.num_images!==1?'s':''} · ${label}` +
+    (rejectedCount ? ` · ${rejectedCount} not a brain MRI` : '');
 
   renderAggregate(probs);
 
@@ -2335,7 +2628,18 @@ function renderPerImage(items, fileEntries = []) {
     row.className = 'result-row';
     row.style.animationDelay = `${i * 40}ms`;
 
+    if (item.ood_rejected) {
+      row.innerHTML = `
+        <span class="result-filename">${escHtml(item.filename)}</span>
+        <span class="result-class-wrap"><span class="risk-chip risk-ood">Not a brain MRI</span></span>
+        <span class="result-ood-reason" title="${escHtml(item.ood_reason || '')}">${escHtml(item.ood_reason || '')}</span>
+        <span></span>`;
+      wrap.appendChild(row);
+      return;
+    }
+
     const hasCam = fe && fe.explanation;
+    const warnHtml = item.ood_warning ? `<span class="file-warn-flag" title="${escHtml(item.ood_warning.reason || '')}">⚠</span>` : '';
     const explainBtnHtml = fe
       ? `<button class="btn-explain ${hasCam ? 'has-cam' : ''}" data-result-explain="${fe.id}">
            <span class="explain-dot"></span>${hasCam ? 'Explained' : 'Explain'}
@@ -2344,7 +2648,7 @@ function renderPerImage(items, fileEntries = []) {
 
     row.innerHTML = `
       <span class="result-filename">${escHtml(item.filename)}</span>
-      <span class="result-class-wrap">${riskChip(item.predicted_class)}</span>
+      <span class="result-class-wrap">${riskChip(item.predicted_class)}${warnHtml}</span>
       <span class="result-conf">${(item.confidence*100).toFixed(1)}%</span>
       ${explainBtnHtml}`;
     wrap.appendChild(row);
