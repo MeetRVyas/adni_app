@@ -2,7 +2,11 @@
 
 Feed it a brain MRI slice, get back an Alzheimer's stage and a heatmap of exactly what convinced it.
 
+<div align = "center">
+
 [![License: MIT](https://img.shields.io/github/license/MeetRVyas/adni_app)](LICENSE) [![Last Commit](https://img.shields.io/github/last-commit/MeetRVyas/adni_app)](https://github.com/MeetRVyas/adni_app/commits/main) [![Deploy to HF Space](https://github.com/MeetRVyas/adni_app/actions/workflows/deploy_hf.yml/badge.svg)](https://github.com/MeetRVyas/adni_app/actions/workflows/deploy_hf.yml) [![Hugging Face Space](https://img.shields.io/badge/demo-Hugging%20Face%20Space-yellow)](https://huggingface.co/spaces/MeetV16/neuroscan) [![Training Repo](https://img.shields.io/badge/training-adni__code-blue)](https://github.com/MeetRVyas/adni_code)
+
+</div>
 
 ## Why this exists
 
@@ -12,7 +16,9 @@ This started as the inference slice of a bigger medical imaging pipeline. The mo
 
 Live: **[huggingface.co/spaces/MeetV16/neuroscan](https://huggingface.co/spaces/MeetV16/neuroscan)**
 
-![UI Screenshot](docs/assets/app-demo.png)
+<div align = "center">
+<img src="docs/assets/app-demo.png" alt="App Demo">
+</div>
 
 ## Features
 
