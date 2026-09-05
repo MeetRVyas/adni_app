@@ -35,7 +35,7 @@ ENV HOME=/home/user \
 WORKDIR $HOME/app
 
 # Copy application files (owned by user)
-COPY --chown=user main.py index.html ./
+# COPY --chown=user main.py index.html ./
 COPY --chown=user package/config.py \
                   package/visualization.py \
                   package/explainability.py \

@@ -18,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # cp    index.html                  space_build/index.html
       - name: Assemble Space directory
         run: |
           mkdir -p space_build/package
@@ -25,7 +26,6 @@ jobs:
           cp package/visualization.py       space_build/package/visualization.py
           cp package/explainability.py      space_build/package/explainability.py
           cp package/ood_guard.py      space_build/package/ood_guard.py
-          cp    index.html                  space_build/index.html
           cp    deploy/hf/Dockerfile        space_build/Dockerfile
           cp    deploy/hf/main.py           space_build/main.py
           cp    deploy/hf/requirements.txt  space_build/requirements.txt
